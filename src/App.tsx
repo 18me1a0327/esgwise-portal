@@ -19,8 +19,8 @@ import NotFound from "./pages/NotFound";
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const FormEntry = lazy(() => import("./pages/FormEntry"));
 const ApprovalQueue = lazy(() => import("./pages/ApprovalQueue"));
-const Sites = lazy(() => import("./pages/admin/Sites"));
-const EmissionFactors = lazy(() => import("./pages/admin/EmissionFactors"));
+const Sites = lazy(() => import("./pages/Sites"));
+const EmissionFactors = lazy(() => import("./pages/EmissionFactors"));
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 
 const queryClient = new QueryClient();
