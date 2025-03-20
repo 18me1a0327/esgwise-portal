@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as LabelPrimitive from "@radix-ui/react-label"
 import { Slot } from "@radix-ui/react-slot"
@@ -164,6 +165,53 @@ const FormMessage = React.forwardRef<
 })
 FormMessage.displayName = "FormMessage"
 
+// New helper component for debounced numeric inputs
+const FormNumericInput = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & {
+    debounceMs?: number;
+    onValueChange?: (value: number | null) => void;
+  }
+>(({ debounceMs = 300, onValueChange, ...props }, ref) => {
+  const [internalValue, setInternalValue] = React.useState(props.value?.toString() || '');
+  
+  React.useEffect(() => {
+    setInternalValue(props.value?.toString() || '');
+  }, [props.value]);
+
+  // Debounced value change
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      if (onValueChange) {
+        const parsed = internalValue === '' ? null : parseFloat(internalValue);
+        if (!isNaN(parsed) || parsed === null) {
+          onValueChange(parsed);
+        }
+      }
+    }, debounceMs);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [internalValue, onValueChange, debounceMs]);
+
+  return (
+    <input
+      ref={ref}
+      {...props}
+      type="number"
+      value={internalValue}
+      onChange={(e) => {
+        setInternalValue(e.target.value);
+        if (props.onChange) {
+          props.onChange(e);
+        }
+      }}
+    />
+  );
+});
+FormNumericInput.displayName = "FormNumericInput";
+
 export {
   useFormField,
   Form,
@@ -173,4 +221,5 @@ export {
   FormDescription,
   FormMessage,
   FormField,
+  FormNumericInput,
 }

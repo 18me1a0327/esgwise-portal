@@ -11,13 +11,17 @@ import {
   Settings2Icon,
   HelpCircleIcon,
   MenuIcon,
-  XIcon
+  XIcon,
+  Users,
+  Shield,
+  Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Sidebar = () => {
   const [expanded, setExpanded] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   const toggleSidebar = () => {
     setExpanded(!expanded);
@@ -27,14 +31,20 @@ const Sidebar = () => {
     setMobileOpen(!mobileOpen);
   };
 
+  const toggleAdmin = () => {
+    setAdminOpen(!adminOpen);
+  };
+
   const NavItem = ({ 
     to, 
     icon, 
-    label 
+    label,
+    onClick
   }: { 
     to: string; 
     icon: React.ReactNode; 
     label: string;
+    onClick?: () => void;
   }) => {
     return (
       <NavLink
@@ -47,11 +57,49 @@ const Sidebar = () => {
             !expanded && "justify-center"
           )
         }
-        onClick={() => setMobileOpen(false)}
+        onClick={() => {
+          setMobileOpen(false);
+          onClick && onClick();
+        }}
       >
         {icon}
         {(expanded || mobileOpen) && <span>{label}</span>}
       </NavLink>
+    );
+  };
+
+  const AdminButton = ({ onClick }: { onClick: () => void }) => {
+    return (
+      <button
+        onClick={onClick}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-lg px-3 py-2 transition-all",
+          "text-esg-gray-600 hover:bg-esg-gray-100",
+          adminOpen && "bg-esg-gray-100 font-medium",
+          !expanded && "justify-center"
+        )}
+      >
+        <Shield size={20} />
+        {(expanded || mobileOpen) && (
+          <div className="flex flex-1 items-center justify-between">
+            <span>Admin</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={cn("transition-transform", adminOpen ? "rotate-180" : "")}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
+        )}
+      </button>
     );
   };
 
@@ -132,7 +180,18 @@ const Sidebar = () => {
             <NavItem to="/dashboard" icon={<BarChart3Icon size={20} />} label="Dashboard" />
             <NavItem to="/form" icon={<ClipboardCheckIcon size={20} />} label="Data Collection" />
             <NavItem to="/approvals" icon={<CheckSquareIcon size={20} />} label="Approval Queue" />
-            <NavItem to="/sites" icon={<BuildingIcon size={20} />} label="Sites" />
+            
+            {/* Admin Section */}
+            <div className="pt-3">
+              <AdminButton onClick={toggleAdmin} />
+              {adminOpen && (expanded || mobileOpen) && (
+                <div className="mt-1 space-y-1 pl-9">
+                  <NavItem to="/admin/users" icon={<Users size={16} />} label="User Management" />
+                  <NavItem to="/admin/sites" icon={<BuildingIcon size={16} />} label="Sites" />
+                  <NavItem to="/admin/emission-factors" icon={<Database size={16} />} label="Emission Factors" />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="mt-6 border-t border-gray-100 pt-6">

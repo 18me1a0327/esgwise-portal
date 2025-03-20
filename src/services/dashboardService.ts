@@ -19,6 +19,19 @@ export const fetchDashboardData = async () => {
     throw new Error('Failed to fetch approved submissions');
   }
 
+  // If no approved submissions, return empty data
+  if (!submissions || submissions.length === 0) {
+    return {
+      totalSubmissions: 0,
+      totalEmissions: 0,
+      renewablePercentage: 0,
+      siteStats: [],
+      environmentalData: [],
+      socialData: [],
+      emissionFactors: []
+    };
+  }
+
   // Fetch environmental data for approved submissions
   const { data: environmentalData, error: envError } = await supabase
     .from('environmental_data')
@@ -106,6 +119,13 @@ export const fetchDashboardData = async () => {
         sum + (Number(item.water_withdrawal) || 0), 0) || 0,
       totalEmployees: siteSocialData?.[0]?.total_employees || 0
     };
+  });
+
+  console.log('Dashboard data prepared:', { 
+    totalSubmissions, 
+    totalEmissions, 
+    renewablePercentage, 
+    siteStats: siteStats?.length 
   });
 
   return {
