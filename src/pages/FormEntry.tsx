@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { 
   Leaf, 
@@ -11,46 +11,127 @@ import {
   Save, 
   Send, 
   ArrowLeft,
-  Info,
+  PlusCircle,
   Loader2
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import GlassCard from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchSites } from "@/services/siteService";
-import { createSubmission, saveAsDraft } from "@/services/esgSubmissionService";
+import { createSubmission, saveAsDraft, fetchSubmissionDetails } from "@/services/esgSubmissionService";
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+const YEARS = ["2022", "2023", "2024", "2025", "2026"];
+
+const REPORTING_SPANS = ["Monthly", "Quarterly", "Annually"];
+
+// Environmental categories
+const ENV_CATEGORIES = {
+  "Energy Consumption": [
+    { id: "total_electricity", label: "Total electricity consumption", unit: "kWh" },
+    { id: "renewable_ppa", label: "Electricity from renewable sources", unit: "kWh" },
+    { id: "renewable_rooftop", label: "Electricity from renewable sources through Rooftop", unit: "kWh" },
+    { id: "coal_consumption", label: "Coal consumption", unit: "MT" },
+    { id: "hsd_consumption", label: "HSD (High-Speed Diesel) consumption", unit: "KL" },
+    { id: "furnace_oil_consumption", label: "Furnace Oil consumption", unit: "MT" },
+    { id: "petrol_consumption", label: "Petrol consumption", unit: "KL" }
+  ],
+  "Air Emissions": [
+    { id: "nox", label: "Oxides of Nitrogen (NOx)", unit: "MT" },
+    { id: "sox", label: "Sulfur Oxides (SOx)", unit: "MT" },
+    { id: "pm", label: "Particulate Matter (PM)", unit: "MT" },
+    { id: "pop", label: "Persistent Organic Pollutants", unit: "MT" },
+    { id: "voc", label: "Volatile Organic Compounds", unit: "MT" },
+    { id: "hap", label: "Hazardous Air Pollutants", unit: "MT" }
+  ],
+  "Water Management": [
+    { id: "water_withdrawal", label: "Total Water Withdrawal", unit: "KL" },
+    { id: "third_party_water", label: "Third-Party Water Usage", unit: "KL" },
+    { id: "rainwater", label: "Rainwater Harvesting", unit: "KL" },
+    { id: "wastewater_generated", label: "Total Wastewater Generated", unit: "KL" },
+    { id: "recycled_wastewater", label: "Recycled Wastewater", unit: "KL" },
+    { id: "water_discharged", label: "Water Discharged to Third Parties", unit: "KL" }
+  ],
+  "Waste Management": [
+    { id: "hazardous_landfill", label: "Hazardous Waste to Landfill", unit: "MT" },
+    { id: "hazardous_incinerated", label: "Hazardous Waste Incinerated", unit: "MT" },
+    { id: "hazardous_coprocessed", label: "Hazardous Waste Co-Processed", unit: "MT" },
+    { id: "total_hazardous", label: "Total Hazardous Waste", unit: "MT" },
+    { id: "plastic_waste", label: "Plastic Waste", unit: "MT" },
+    { id: "non_hazardous", label: "Non-Hazardous Waste", unit: "MT" },
+    { id: "bio_medical", label: "Bio-Medical Waste", unit: "MT" },
+    { id: "e_waste", label: "E-Waste", unit: "MT" },
+    { id: "waste_oil", label: "Waste Oil", unit: "MT" },
+    { id: "total_waste", label: "Total Waste Generated", unit: "MT" }
+  ]
+};
+
+// Social categories
+const SOCIAL_CATEGORIES = {
+  "Employment & Workforce": [
+    { id: "total_employees", label: "Total Number of Employees", unit: "" },
+    { id: "male_employees", label: "Number of Male Employees", unit: "" },
+    { id: "female_employees", label: "Number of Female Employees", unit: "" },
+    { id: "new_hires", label: "Number of New Hires", unit: "" },
+    { id: "contract_male", label: "Number of Contract Workers (Male)", unit: "" },
+    { id: "contract_female", label: "Number of Contract Workers (Female)", unit: "" },
+    { id: "attrition", label: "Attrition (Absolute Number)", unit: "" }
+  ],
+  "Employee Benefits": [
+    { id: "health_insurance", label: "Employees with Health Insurance", unit: "%" },
+    { id: "accident_insurance", label: "Employees with Accident Insurance", unit: "%" },
+    { id: "parental_benefits", label: "Employees with Parental Benefits", unit: "%" },
+    { id: "pf_coverage", label: "Employees with PF Coverage", unit: "%" },
+    { id: "gratuity_coverage", label: "Employees with Gratuity Coverage", unit: "%" },
+    { id: "esi_coverage", label: "Employees with ESI Coverage", unit: "%" }
+  ]
+};
+
+// Governance categories
+const GOVERNANCE_CATEGORIES = {
+  "Board Composition": [
+    { id: "board_members", label: "Number of Board Members", unit: "" },
+    { id: "women_percentage", label: "Percentage of Women on Board", unit: "%" },
+    { id: "board_under30", label: "Board Members Under 30 Years", unit: "%" },
+    { id: "board_30to50", label: "Board Members Between 30-50 Years", unit: "%" },
+    { id: "board_above50", label: "Board Members Above 50 Years", unit: "%" }
+  ],
+  "Cybersecurity": [
+    { id: "cybersecurity_incidents", label: "Number of Data Privacy or Cybersecurity Incidents", unit: "" }
+  ],
+  "Business Ethics": [
+    { id: "corruption_incidents", label: "Number of Corruption and Bribery Incidents", unit: "" },
+    { id: "legal_fines", label: "Number of Legal Fines or Penalties", unit: "" }
+  ]
+};
 
 const FormEntry = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = !!id;
+
   const [selectedSite, setSelectedSite] = useState<string>("");
-  const [periodStart, setPeriodStart] = useState<string>("");
-  const [periodEnd, setPeriodEnd] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [reportingSpan, setReportingSpan] = useState<string>("Monthly");
   const [submitterName, setSubmitterName] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
   const [activeTab, setActiveTab] = useState("environmental");
+  const [selectedCategory, setSelectedCategory] = useState<string>("Energy Consumption");
   const [formData, setFormData] = useState({
     environmental: {} as Record<string, number>,
     social: {} as Record<string, number>,
     governance: {} as Record<string, number>
-  });
-  const [expandedSections, setExpandedSections] = useState({
-    energyConsumption: true,
-    airEmissions: false,
-    waterManagement: false,
-    wasteManagement: false,
-    employment: true,
-    employeeBenefits: false,
-    wagesCompensation: false,
-    trainingDevelopment: false,
-    workplaceSafety: false,
-    complaintsGrievances: false,
-    boardComposition: true,
-    cybersecurity: false,
-    businessEthics: false
   });
 
   // Fetch sites data
@@ -59,9 +140,46 @@ const FormEntry = () => {
     queryFn: fetchSites
   });
 
+  // Fetch submission details if in edit mode
+  const { data: submissionDetails, isLoading: isSubmissionLoading } = useQuery({
+    queryKey: ['submission', id],
+    queryFn: () => fetchSubmissionDetails(id as string),
+    enabled: isEditMode
+  });
+
   // Submit mutation
   const submitMutation = useMutation({
     mutationFn: (isDraft: boolean) => {
+      // Calculate period start and end dates based on month/year selection
+      let periodStart, periodEnd;
+      
+      const year = parseInt(selectedYear);
+      const monthIndex = MONTHS.indexOf(selectedMonth);
+      
+      if (reportingSpan === "Monthly" && monthIndex !== -1) {
+        // For monthly reporting
+        periodStart = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-01`;
+        
+        // Calculate the last day of the month
+        const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+        periodEnd = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-${lastDay}`;
+      } else if (reportingSpan === "Quarterly") {
+        // For quarterly reporting
+        const quarter = Math.floor(monthIndex / 3);
+        const startMonth = quarter * 3 + 1;
+        const endMonth = startMonth + 2;
+        
+        periodStart = `${year}-${startMonth.toString().padStart(2, '0')}-01`;
+        
+        // Last day of the last month in the quarter
+        const lastDay = new Date(year, endMonth, 0).getDate();
+        periodEnd = `${year}-${endMonth.toString().padStart(2, '0')}-${lastDay}`;
+      } else {
+        // Default to annual reporting (full year)
+        periodStart = `${year}-01-01`;
+        periodEnd = `${year}-12-31`;
+      }
+      
       if (isDraft) {
         return saveAsDraft(
           selectedSite,
@@ -97,24 +215,59 @@ const FormEntry = () => {
     }
   });
 
-  const toggleSection = (section: string) => {
-    setExpandedSections({
-      ...expandedSections,
-      [section]: !expandedSections[section as keyof typeof expandedSections]
-    });
-  };
+  // Populate form with existing data if in edit mode
+  useEffect(() => {
+    if (isEditMode && submissionDetails) {
+      const { submission, environmentalData, socialData, governanceData } = submissionDetails;
+      
+      setSelectedSite(submission.site_id);
+      
+      // Parse dates to set month and year
+      const startDate = new Date(submission.period_start);
+      setSelectedMonth(MONTHS[startDate.getMonth()]);
+      setSelectedYear(startDate.getFullYear().toString());
+      
+      // Determine reporting span based on date range
+      const periodStart = new Date(submission.period_start);
+      const periodEnd = new Date(submission.period_end);
+      const monthDiff = (periodEnd.getFullYear() - periodStart.getFullYear()) * 12 
+                         + periodEnd.getMonth() - periodStart.getMonth() + 1;
+      
+      if (monthDiff === 1) {
+        setReportingSpan("Monthly");
+      } else if (monthDiff === 3) {
+        setReportingSpan("Quarterly");
+      } else {
+        setReportingSpan("Annually");
+      }
+      
+      setSubmitterName(submission.submitted_by);
+      
+      // Set form data
+      setFormData({
+        environmental: { ...(environmentalData || {}) },
+        social: { ...(socialData || {}) },
+        governance: { ...(governanceData || {}) }
+      });
+    }
+  }, [isEditMode, submissionDetails]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
     if (!selectedSite) {
-      toast.error("Please select a site");
+      toast.error("Please select a site location");
       return;
     }
     
-    if (!periodStart || !periodEnd) {
-      toast.error("Please select reporting period start and end dates");
+    if (!selectedMonth && reportingSpan === "Monthly") {
+      toast.error("Please select a month");
+      return;
+    }
+    
+    if (!selectedYear) {
+      toast.error("Please select a year");
       return;
     }
     
@@ -128,19 +281,14 @@ const FormEntry = () => {
   };
 
   const handleSaveDraft = () => {
-    // Validation
+    // Same validation as submit
     if (!selectedSite) {
-      toast.error("Please select a site");
+      toast.error("Please select a site location");
       return;
     }
     
-    if (!periodStart || !periodEnd) {
-      toast.error("Please select reporting period start and end dates");
-      return;
-    }
-    
-    if (!submitterName) {
-      toast.error("Please enter your name");
+    if (!selectedYear) {
+      toast.error("Please select a year");
       return;
     }
     
@@ -148,7 +296,8 @@ const FormEntry = () => {
     submitMutation.mutate(true);
   };
 
-  const handleInputChange = (category: 'environmental' | 'social' | 'governance', id: string, value: string) => {
+  // Update form data with debouncing to avoid flickering
+  const updateFormData = (category: 'environmental' | 'social' | 'governance', id: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [category]: {
@@ -158,112 +307,43 @@ const FormEntry = () => {
     }));
   };
 
-  // Animation variants
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
+  // Get parameters for the current tab and category
+  const getCurrentParameters = () => {
+    if (activeTab === "environmental") {
+      return ENV_CATEGORIES[selectedCategory as keyof typeof ENV_CATEGORIES] || [];
+    } else if (activeTab === "social") {
+      return SOCIAL_CATEGORIES[selectedCategory as keyof typeof SOCIAL_CATEGORIES] || [];
+    } else {
+      return GOVERNANCE_CATEGORIES[selectedCategory as keyof typeof GOVERNANCE_CATEGORIES] || [];
     }
   };
 
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
+  // Get all categories for the current tab
+  const getCurrentCategories = () => {
+    if (activeTab === "environmental") {
+      return Object.keys(ENV_CATEGORIES);
+    } else if (activeTab === "social") {
+      return Object.keys(SOCIAL_CATEGORIES);
+    } else {
+      return Object.keys(GOVERNANCE_CATEGORIES);
+    }
   };
 
-  const Section = ({ 
-    title, 
-    sectionKey, 
-    children 
-  }: { 
-    title: string; 
-    sectionKey: string; 
-    children: React.ReactNode 
-  }) => {
-    const isExpanded = expandedSections[sectionKey as keyof typeof expandedSections];
-    
+  if (isSubmissionLoading) {
     return (
-      <div className="mb-6">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between rounded-lg bg-gray-50 p-3 text-left hover:bg-gray-100 focus:outline-none"
-          onClick={() => toggleSection(sectionKey)}
-        >
-          <span className="font-medium">{title}</span>
-          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-        </button>
-        
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden"
-            >
-              <div className="border border-gray-100 rounded-lg p-4 mt-2">
-                {children}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <span className="ml-2 text-lg text-gray-600">Loading submission data...</span>
       </div>
     );
-  };
-
-  const FormField = ({ 
-    label, 
-    id, 
-    unit, 
-    info,
-    category
-  }: { 
-    label: string; 
-    id: string; 
-    unit: string;
-    info?: string;
-    category: 'environmental' | 'social' | 'governance';
-  }) => (
-    <div className="mb-4">
-      <Label htmlFor={id} className="flex items-center gap-1">
-        {label}
-        {info && (
-          <div className="relative group">
-            <Info size={14} className="text-gray-400 cursor-help" />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              {info}
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
-            </div>
-          </div>
-        )}
-      </Label>
-      <div className="relative">
-        <Input 
-          id={id} 
-          className="pr-12" 
-          type="number" 
-          min="0" 
-          step="0.01" 
-          value={formData[category][id] || ''} 
-          onChange={(e) => handleInputChange(category, id, e.target.value)}
-        />
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-          {unit}
-        </div>
-      </div>
-    </div>
-  );
+  }
 
   return (
     <div className="container max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">ESG Data Collection Form</h1>
-          <p className="text-gray-500">Submit structured ESG data for review and approval</p>
+          <h1 className="text-2xl font-bold">ESG Data Collection</h1>
+          <p className="text-gray-500">Record environmental, social, and governance metrics for sustainability reporting</p>
         </div>
         <Button 
           variant="outline"
@@ -278,9 +358,9 @@ const FormEntry = () => {
 
       <GlassCard className="p-6">
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-6 mb-8 grid-cols-1 md:grid-cols-4">
-            <div className="md:col-span-2">
-              <Label htmlFor="site">Site/Location</Label>
+          <div className="grid gap-6 mb-8 grid-cols-1 md:grid-cols-3">
+            <div>
+              <Label htmlFor="site">Site Location</Label>
               {isSitesLoading ? (
                 <div className="flex items-center mt-2 text-sm text-gray-500">
                   <Loader2 size={16} className="mr-2 animate-spin" />
@@ -288,8 +368,8 @@ const FormEntry = () => {
                 </div>
               ) : (
                 <Select value={selectedSite} onValueChange={setSelectedSite}>
-                  <SelectTrigger id="site">
-                    <SelectValue placeholder="Select site" />
+                  <SelectTrigger id="site" className="mt-1">
+                    <SelectValue placeholder="Select site location" />
                   </SelectTrigger>
                   <SelectContent>
                     {sites?.map(site => (
@@ -303,643 +383,148 @@ const FormEntry = () => {
             </div>
             
             <div>
-              <Label htmlFor="period-start">Reporting Period - Start</Label>
-              <Input 
-                id="period-start" 
-                type="date" 
-                value={periodStart}
-                onChange={(e) => setPeriodStart(e.target.value)}
-              />
+              <Label htmlFor="month">Month</Label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={reportingSpan !== "Monthly"}>
+                <SelectTrigger id="month" className="mt-1">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map(month => (
+                    <SelectItem key={month} value={month}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div>
-              <Label htmlFor="period-end">Reporting Period - End</Label>
-              <Input 
-                id="period-end" 
-                type="date" 
-                value={periodEnd}
-                onChange={(e) => setPeriodEnd(e.target.value)}
-              />
+              <Label htmlFor="year">Year</Label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger id="year" className="mt-1">
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEARS.map(year => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-
-            <div className="md:col-span-4">
+            
+            <div>
+              <Label htmlFor="reporting-span">Reporting Span</Label>
+              <Select value={reportingSpan} onValueChange={setReportingSpan}>
+                <SelectTrigger id="reporting-span" className="mt-1">
+                  <SelectValue placeholder="Select reporting span" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REPORTING_SPANS.map(span => (
+                    <SelectItem key={span} value={span}>
+                      {span}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="md:col-span-2">
               <Label htmlFor="submitter">Submitted By</Label>
               <Input 
                 id="submitter" 
                 placeholder="Your name" 
                 value={submitterName}
                 onChange={(e) => setSubmitterName(e.target.value)}
+                className="mt-1"
               />
             </div>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-            <TabsList className="w-full md:w-auto grid grid-cols-3">
+            <TabsList className="w-full grid grid-cols-3 mb-6">
               <TabsTrigger value="environmental" className="flex items-center gap-2">
                 <Leaf size={16} />
-                <span className="hidden sm:inline">Environmental</span>
+                <span>Environmental</span>
               </TabsTrigger>
               <TabsTrigger value="social" className="flex items-center gap-2">
                 <Users size={16} />
-                <span className="hidden sm:inline">Social</span>
+                <span>Social</span>
               </TabsTrigger>
               <TabsTrigger value="governance" className="flex items-center gap-2">
                 <Briefcase size={16} />
-                <span className="hidden sm:inline">Governance</span>
+                <span>Governance</span>
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="environmental" className="mt-6">
-              <motion.div 
-                variants={container}
-                initial="hidden"
-                animate="show"
+            <div className="mb-4">
+              <Label htmlFor="subcategory">Subcategory</Label>
+              <Select 
+                value={selectedCategory} 
+                onValueChange={setSelectedCategory}
               >
-                <Section title="Energy Consumption" sectionKey="energyConsumption">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                    <FormField 
-                      label="Total Electricity Consumption" 
-                      id="total_electricity" 
-                      unit="kWh" 
-                      info="Total electricity consumed from all sources"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Renewable Electricity (PPA)" 
-                      id="renewable_ppa" 
-                      unit="kWh"
-                      info="Electricity from renewable sources through Power Purchase Agreements"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Renewable Electricity (Rooftop)" 
-                      id="renewable_rooftop" 
-                      unit="kWh"
-                      info="Electricity generated from rooftop solar installations"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Coal Consumption" 
-                      id="coal_consumption" 
-                      unit="MT"
-                      info="Metric tons of coal consumed"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="HSD Consumption" 
-                      id="hsd_consumption" 
-                      unit="KL"
-                      info="High-Speed Diesel consumption in kiloliters"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Furnace Oil Consumption" 
-                      id="furnace_oil_consumption" 
-                      unit="MT"
-                      info="Metric tons of furnace oil consumed"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Petrol Consumption" 
-                      id="petrol_consumption" 
-                      unit="KL"
-                      info="Petrol consumption in kiloliters"
-                      category="environmental"
-                    />
-                  </div>
-                </Section>
-                
-                <Section title="Air Emissions" sectionKey="airEmissions">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                    <FormField 
-                      label="Oxides of Nitrogen (NOx)" 
-                      id="nox" 
-                      unit="MT"
-                      info="Metric tons of NOx emissions"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Sulfur Oxides (SOx)" 
-                      id="sox" 
-                      unit="MT"
-                      info="Metric tons of SOx emissions"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Particulate Matter (PM)" 
-                      id="pm" 
-                      unit="MT"
-                      info="Metric tons of particulate matter emissions"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Persistent Organic Pollutants" 
-                      id="pop" 
-                      unit="MT"
-                      info="Metric tons of persistent organic pollutants"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Volatile Organic Compounds" 
-                      id="voc" 
-                      unit="MT"
-                      info="Metric tons of volatile organic compounds"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Hazardous Air Pollutants" 
-                      id="hap" 
-                      unit="MT"
-                      info="Metric tons of hazardous air pollutants"
-                      category="environmental"
-                    />
-                  </div>
-                </Section>
-                
-                <Section title="Water & Wastewater Management" sectionKey="waterManagement">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                    <FormField 
-                      label="Total Water Withdrawal" 
-                      id="water_withdrawal" 
-                      unit="KL"
-                      info="Total water withdrawn in kiloliters"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Third-Party Water Usage" 
-                      id="third_party_water" 
-                      unit="KL"
-                      info="Water obtained from third-party sources in kiloliters"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Rainwater Harvesting" 
-                      id="rainwater" 
-                      unit="KL"
-                      info="Water collected from rainwater harvesting in kiloliters"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Total Wastewater Generated" 
-                      id="wastewater_generated" 
-                      unit="KL"
-                      info="Total wastewater generated (LTDS+HTDS) in kiloliters"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Recycled Wastewater" 
-                      id="recycled_wastewater" 
-                      unit="KL"
-                      info="Wastewater recycled and reused in kiloliters"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Water Discharged to Third Parties" 
-                      id="water_discharged" 
-                      unit="KL"
-                      info="Water discharged to third parties in kiloliters"
-                      category="environmental"
-                    />
-                  </div>
-                </Section>
-                
-                <Section title="Waste Management" sectionKey="wasteManagement">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                    <FormField 
-                      label="Hazardous Waste to Landfill" 
-                      id="hazardous_landfill" 
-                      unit="MT"
-                      info="Hazardous waste disposed to landfill in metric tons"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Hazardous Waste Incinerated" 
-                      id="hazardous_incinerated" 
-                      unit="MT"
-                      info="Hazardous waste incinerated in metric tons"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Hazardous Waste Co-Processed" 
-                      id="hazardous_coprocessed" 
-                      unit="MT"
-                      info="Hazardous waste co-processed in metric tons"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Total Hazardous Waste" 
-                      id="total_hazardous" 
-                      unit="MT"
-                      info="Total hazardous waste in metric tons"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Plastic Waste" 
-                      id="plastic_waste" 
-                      unit="MT"
-                      info="Plastic waste in metric tons"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Non-Hazardous Waste" 
-                      id="non_hazardous" 
-                      unit="MT"
-                      info="Non-hazardous waste in metric tons"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Bio-Medical Waste" 
-                      id="bio_medical" 
-                      unit="MT"
-                      info="Bio-medical waste in metric tons"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="E-Waste" 
-                      id="e_waste" 
-                      unit="MT"
-                      info="Electronic waste in metric tons"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Waste Oil" 
-                      id="waste_oil" 
-                      unit="MT"
-                      info="Waste oil in metric tons"
-                      category="environmental"
-                    />
-                    <FormField 
-                      label="Total Waste Generated" 
-                      id="total_waste" 
-                      unit="MT"
-                      info="Total waste generated in metric tons"
-                      category="environmental"
-                    />
-                  </div>
-                </Section>
-              </motion.div>
-            </TabsContent>
+                <SelectTrigger id="subcategory" className="mt-1">
+                  <SelectValue placeholder="Select subcategory" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getCurrentCategories().map(category => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             
-            <TabsContent value="social" className="mt-6">
-              <motion.div 
-                variants={container}
-                initial="hidden"
-                animate="show"
-              >
-                <Section title="Employment & Workforce" sectionKey="employment">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                    <FormField 
-                      label="Total Number of Employees" 
-                      id="total_employees" 
-                      unit=""
-                      info="Total number of permanent employees"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Number of Male Employees" 
-                      id="male_employees" 
-                      unit=""
-                      info="Number of male permanent employees"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Number of Female Employees" 
-                      id="female_employees" 
-                      unit=""
-                      info="Number of female permanent employees"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Number of New Hires" 
-                      id="new_hires" 
-                      unit=""
-                      info="Number of new employees hired during the reporting period"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Number of Contract Workers (Male)" 
-                      id="contract_male" 
-                      unit=""
-                      info="Number of male contract workers"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Number of Contract Workers (Female)" 
-                      id="contract_female" 
-                      unit=""
-                      info="Number of female contract workers"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Attrition (Absolute Number)" 
-                      id="attrition" 
-                      unit=""
-                      info="Number of employees who left during the reporting period"
-                      category="social"
-                    />
-                  </div>
-                </Section>
-                
-                <Section title="Employee Benefits" sectionKey="employeeBenefits">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                    <FormField 
-                      label="Employees with Health Insurance" 
-                      id="health_insurance" 
-                      unit="%"
-                      info="Percentage of employees covered by health insurance"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Employees with Accident Insurance" 
-                      id="accident_insurance" 
-                      unit="%"
-                      info="Percentage of employees covered by accident insurance"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Employees with Parental Benefits" 
-                      id="parental_benefits" 
-                      unit="%"
-                      info="Percentage of employees covered by maternity & paternity benefits"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Employees with PF Coverage" 
-                      id="pf_coverage" 
-                      unit="%"
-                      info="Percentage of employees covered by Provident Fund"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Employees with Gratuity Coverage" 
-                      id="gratuity_coverage" 
-                      unit="%"
-                      info="Percentage of employees covered by gratuity"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Employees with ESI Coverage" 
-                      id="esi_coverage" 
-                      unit="%"
-                      info="Percentage of employees covered by Employee State Insurance"
-                      category="social"
-                    />
-                  </div>
-                </Section>
-                
-                <Section title="Wages & Compensation" sectionKey="wagesCompensation">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                    <FormField 
-                      label="Median Salary (Male Employees)" 
-                      id="median_male_salary" 
-                      unit="INR/year"
-                      info="Median annual salary for male employees"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Median Salary (Female Employees)" 
-                      id="median_female_salary" 
-                      unit="INR/year"
-                      info="Median annual salary for female employees"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Female Wages as % of Total Wages" 
-                      id="female_wages_percentage" 
-                      unit="%"
-                      info="Gross wages paid to females as a percentage of total wages paid"
-                      category="social"
-                    />
-                  </div>
-                </Section>
-                
-                <Section title="Training & Development" sectionKey="trainingDevelopment">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-x-6">
-                    <FormField 
-                      label="Performance & Career Development Reviews" 
-                      id="performance_reviews" 
-                      unit="%"
-                      info="Percentage of employees receiving regular performance and career development reviews"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Training Hours - GMP" 
-                      id="gmp_training" 
-                      unit="Man-Hours"
-                      info="Total training hours for Good Manufacturing Practices"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Training Hours - EHS" 
-                      id="ehs_training" 
-                      unit="Man-Hours"
-                      info="Total training hours for Environment, Health & Safety"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Other Training Hours" 
-                      id="other_training" 
-                      unit="Man-Hours"
-                      info="Total training hours for external technical & behavioral training"
-                      category="social"
-                    />
-                  </div>
-                </Section>
-                
-                <Section title="Workplace Safety" sectionKey="workplaceSafety">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                    <FormField 
-                      label="Reportable Incidents (Employees)" 
-                      id="reportable_employees" 
-                      unit=""
-                      info="Number of reportable incidents involving employees"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Reportable Incidents (Workers)" 
-                      id="reportable_workers" 
-                      unit=""
-                      info="Number of reportable incidents involving contract workers"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Recordable Work-Related Injuries (Employees)" 
-                      id="injuries_employees" 
-                      unit=""
-                      info="Total recordable work-related injuries for employees"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Recordable Work-Related Injuries (Workers)" 
-                      id="injuries_workers" 
-                      unit=""
-                      info="Total recordable work-related injuries for contract workers"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Fatalities (Employees)" 
-                      id="fatalities_employees" 
-                      unit=""
-                      info="Number of work-related fatalities for employees"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Fatalities (Workers)" 
-                      id="fatalities_workers" 
-                      unit=""
-                      info="Number of work-related fatalities for contract workers"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Man-Hours Worked (Employees)" 
-                      id="manhours_employees" 
-                      unit="Man-Hours"
-                      info="Total man-hours worked by employees"
-                      category="social"
-                    />
-                    <FormField 
-                      label="Man-Hours Worked (Workers)" 
-                      id="manhours_workers" 
-                      unit="Man-Hours"
-                      info="Total man-hours worked by contract workers"
-                      category="social"
-                    />
-                  </div>
-                </Section>
-                
-                <Section title="Complaints & Grievances" sectionKey="complaintsGrievances">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <FormField 
-                      label="Number of Workplace Complaints" 
-                      id="workplace_complaints" 
-                      unit=""
-                      info="Complaints related to health & safety, working conditions, discrimination, harassment, wages, etc."
-                      category="social"
-                    />
-                    <FormField 
-                      label="Number of Consumer Complaints" 
-                      id="consumer_complaints" 
-                      unit=""
-                      info="Complaints related to data privacy, cybersecurity, product safety, etc."
-                      category="social"
-                    />
-                  </div>
-                </Section>
-              </motion.div>
-            </TabsContent>
-            
-            <TabsContent value="governance" className="mt-6">
-              <motion.div 
-                variants={container}
-                initial="hidden"
-                animate="show"
-              >
-                <Section title="Board Composition & Diversity" sectionKey="boardComposition">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                    <FormField 
-                      label="Number of Board Members" 
-                      id="board_members" 
-                      unit=""
-                      info="Total number of board members"
-                      category="governance"
-                    />
-                    <FormField 
-                      label="Percentage of Women on Board" 
-                      id="women_percentage" 
-                      unit="%"
-                      info="Percentage of board members who are women"
-                      category="governance"
-                    />
-                    
-                    <div className="col-span-full">
-                      <p className="font-medium mb-3">Board Members by Age Group (%)</p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <FormField 
-                          label="Under 30 Years" 
-                          id="board_under30" 
-                          unit="%"
-                          info="Percentage of board members under 30 years old"
-                          category="governance"
-                        />
-                        <FormField 
-                          label="Between 30 and 50 Years" 
-                          id="board_30to50" 
-                          unit="%"
-                          info="Percentage of board members between 30 and 50 years old"
-                          category="governance"
-                        />
-                        <FormField 
-                          label="Above 50 Years" 
-                          id="board_above50" 
-                          unit="%"
-                          info="Percentage of board members above 50 years old"
-                          category="governance"
-                        />
-                      </div>
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-lg font-medium mb-4">Parameters</h3>
+              
+              <div className="space-y-4">
+                {getCurrentParameters().map(param => (
+                  <div key={param.id} className="flex items-center border-b border-gray-100 pb-3">
+                    <div className="mr-2">
+                      <PlusCircle size={18} className="text-gray-400" />
                     </div>
-                    
-                    <div className="col-span-full">
-                      <p className="font-medium mb-3">Board Members by Experience Level (%)</p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <FormField 
-                          label="Under 5 Years Experience" 
-                          id="exp_under5" 
-                          unit="%"
-                          info="Percentage of board members with less than 5 years of experience"
-                          category="governance"
-                        />
-                        <FormField 
-                          label="Between 5 and 10 Years" 
-                          id="exp_5to10" 
-                          unit="%"
-                          info="Percentage of board members with 5-10 years of experience"
-                          category="governance"
-                        />
-                        <FormField 
-                          label="Above 10 Years Experience" 
-                          id="exp_above10" 
-                          unit="%"
-                          info="Percentage of board members with more than 10 years of experience"
-                          category="governance"
-                        />
-                      </div>
+                    <div className="flex-1">
+                      <Label htmlFor={param.id} className="font-medium">
+                        {param.label}
+                        <span className="text-xs text-gray-500 block mt-0.5">
+                          {param.unit}
+                        </span>
+                      </Label>
+                    </div>
+                    <div className="w-40">
+                      <Input
+                        id={param.id}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData[activeTab as keyof typeof formData][param.id] || ''}
+                        onChange={(e) => updateFormData(
+                          activeTab as 'environmental' | 'social' | 'governance',
+                          param.id,
+                          e.target.value
+                        )}
+                        className="text-right"
+                      />
                     </div>
                   </div>
-                </Section>
-                
-                <Section title="Cybersecurity & Data Privacy" sectionKey="cybersecurity">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <FormField 
-                      label="Number of Data Privacy or Cybersecurity Incidents" 
-                      id="cybersecurity_incidents" 
-                      unit=""
-                      info="Total number of data privacy or cybersecurity incidents during the reporting period"
-                      category="governance"
-                    />
-                  </div>
-                </Section>
-                
-                <Section title="Business Ethics & Compliance" sectionKey="businessEthics">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <FormField 
-                      label="Number of Corruption and Bribery Incidents" 
-                      id="corruption_incidents" 
-                      unit=""
-                      info="Total number of corruption and bribery incidents during the reporting period"
-                      category="governance"
-                    />
-                    <FormField 
-                      label="Number of Legal Fines or Penalties" 
-                      id="legal_fines" 
-                      unit=""
-                      info="Total number of legal fines or penalties during the reporting period"
-                      category="governance"
-                    />
-                  </div>
-                </Section>
-              </motion.div>
-            </TabsContent>
+                ))}
+              </div>
+            </div>
           </Tabs>
+          
+          <div className="mb-6">
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              placeholder="Add any additional context or notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="mt-1 h-24"
+            />
+          </div>
           
           <div className="border-t pt-6 flex flex-col sm:flex-row justify-end gap-3">
             <Button
@@ -958,7 +543,7 @@ const FormEntry = () => {
             </Button>
             <Button
               type="submit"
-              className="gap-2 bg-esg-blue hover:bg-esg-blue/90"
+              className="gap-2 bg-blue-500 hover:bg-blue-600"
               disabled={submitMutation.isPending}
             >
               {submitMutation.isPending ? (
@@ -966,7 +551,7 @@ const FormEntry = () => {
               ) : (
                 <Send size={16} />
               )}
-              Submit for Approval
+              Submit ESG Data
             </Button>
           </div>
         </form>

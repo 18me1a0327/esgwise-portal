@@ -2,7 +2,6 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { BellIcon, SearchIcon, UserCircleIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const Navbar = () => {
   const location = useLocation();
@@ -17,8 +16,12 @@ const Navbar = () => {
         return 'Data Collection';
       case '/approvals':
         return 'Approval Queue';
-      case '/sites':
+      case '/admin/sites':
         return 'Site Management';
+      case '/admin/emission-factors':
+        return 'Emission Factors';
+      case '/admin/users':
+        return 'User Management';
       default:
         return 'ESG Portal';
     }
