@@ -23,6 +23,9 @@ const Navbar = () => {
       case '/admin/users':
         return 'User Management';
       default:
+        if (location.pathname.startsWith('/form/')) {
+          return 'Edit Data Collection';
+        }
         return 'ESG Portal';
     }
   };

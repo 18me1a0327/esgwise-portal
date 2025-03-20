@@ -100,6 +100,43 @@ export const fetchDashboardData = async () => {
     ? (renewableElectricity / totalElectricity) * 100 
     : 0;
 
+  // Prepare data for charts
+  const energyData = environmentalData?.map(item => ({
+    name: item.submission.sites?.name || 'Unknown Site',
+    totalElectricity: Number(item.total_electricity) || 0,
+    renewableEnergy: (Number(item.renewable_ppa) || 0) + (Number(item.renewable_rooftop) || 0),
+    coal: Number(item.coal_consumption) || 0,
+    fossilFuels: (Number(item.hsd_consumption) || 0) + 
+                (Number(item.furnace_oil_consumption) || 0) + 
+                (Number(item.petrol_consumption) || 0)
+  }));
+
+  const emissionsData = environmentalData?.map(item => ({
+    name: item.submission.sites?.name || 'Unknown Site',
+    NOx: Number(item.nox) || 0,
+    SOx: Number(item.sox) || 0,
+    PM: Number(item.pm) || 0,
+    Others: (Number(item.pop) || 0) + (Number(item.voc) || 0) + (Number(item.hap) || 0)
+  }));
+  
+  const waterData = environmentalData?.map(item => ({
+    name: item.submission.sites?.name || 'Unknown Site',
+    Withdrawal: Number(item.water_withdrawal) || 0,
+    ThirdParty: Number(item.third_party_water) || 0,
+    Rainwater: Number(item.rainwater) || 0,
+    Recycled: Number(item.recycled_wastewater) || 0,
+    Discharged: Number(item.water_discharged) || 0
+  }));
+  
+  const wasteData = environmentalData?.map(item => ({
+    name: 'Hazardous', value: Number(item.total_hazardous) || 0,
+    name: 'Non-hazardous', value: Number(item.non_hazardous) || 0,
+    name: 'Plastic', value: Number(item.plastic_waste) || 0,
+    name: 'E-waste', value: Number(item.e_waste) || 0,
+    name: 'Bio-medical', value: Number(item.bio_medical) || 0,
+    name: 'Waste oil', value: Number(item.waste_oil) || 0,
+  }));
+
   // Fetch statistics by site
   const siteStats = submissions?.map(submission => {
     const siteEnvData = environmentalData?.filter(data => 
@@ -125,14 +162,26 @@ export const fetchDashboardData = async () => {
     totalSubmissions, 
     totalEmissions, 
     renewablePercentage, 
-    siteStats: siteStats?.length 
+    siteStats: siteStats?.length,
+    chartData: {
+      energyData: energyData?.length,
+      emissionsData: emissionsData?.length,
+      waterData: waterData?.length,
+      wasteData: wasteData?.length
+    }
   });
 
   return {
     totalSubmissions,
     totalEmissions,
     renewablePercentage,
-    siteStats,
+    siteStats: siteStats || [],
+    chartData: {
+      energyData: energyData || [],
+      emissionsData: emissionsData || [],
+      waterData: waterData || [],
+      wasteData: wasteData || []
+    },
     environmentalData,
     socialData,
     emissionFactors

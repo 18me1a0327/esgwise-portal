@@ -1,81 +1,37 @@
-
 import React, { useState } from "react";
 import { 
   BarChart3Icon, 
-  BarChart4Icon, 
   Droplets, 
   Leaf, 
-  Recycle, 
   Users, 
-  Heart, 
-  DollarSign, 
-  GraduationCap, 
-  Shield, 
-  MessageSquare, 
   Briefcase, 
-  Lock, 
-  Gavel
+  Loader2
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import GlassCard from "@/components/ui/GlassCard";
 import DashboardCard from "@/components/Dashboard/DashboardCard";
 import ProgressRing from "@/components/Dashboard/ProgressRing";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { mockESGData, mockSites } from "@/types/esg";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { fetchDashboardData } from "@/services/dashboardService";
+import { fetchSites } from "@/services/siteService";
 
 const Dashboard = () => {
   const [selectedSite, setSelectedSite] = useState<string>("all");
   const [timeframe, setTimeframe] = useState<string>("quarter");
 
-  // Environmental data summary
-  const energyData = [
-    { name: 'Electricity', value: 150000 },
-    { name: 'Renewable', value: 60000 },
-    { name: 'Coal', value: 200 },
-    { name: 'Fossil Fuels', value: 9000 },
-  ];
+  // Fetch dashboard data
+  const { data: dashboardData, isLoading: isLoadingDashboard } = useQuery({
+    queryKey: ['dashboardData', selectedSite, timeframe],
+    queryFn: fetchDashboardData
+  });
 
-  const emissionsData = [
-    { name: 'NOx', value: 50 },
-    { name: 'SOx', value: 30 },
-    { name: 'PM', value: 20 },
-    { name: 'Others', value: 30 },
-  ];
-
-  const waterData = [
-    { name: 'Withdrawal', value: 50000 },
-    { name: 'Third-party', value: 20000 },
-    { name: 'Rainwater', value: 5000 },
-    { name: 'Recycled', value: 15000 },
-    { name: 'Discharged', value: 10000 },
-  ];
-
-  const wasteData = [
-    { name: 'Hazardous', value: 180 },
-    { name: 'Non-hazardous', value: 500 },
-    { name: 'Plastic', value: 200 },
-    { name: 'E-waste', value: 15 },
-    { name: 'Bio-medical', value: 20 },
-    { name: 'Waste oil', value: 25 },
-  ];
-
-  // Social data summary
-  const employeeData = [
-    { name: 'Male Employees', value: 350 },
-    { name: 'Female Employees', value: 150 },
-    { name: 'Contract Male', value: 100 },
-    { name: 'Contract Female', value: 50 },
-  ];
-
-  const benefitsData = [
-    { name: 'Health Insurance', value: 100 },
-    { name: 'Accident Insurance', value: 100 },
-    { name: 'Parental Benefits', value: 100 },
-    { name: 'PF Coverage', value: 100 },
-    { name: 'Gratuity', value: 100 },
-    { name: 'ESI', value: 40 },
-  ];
+  // Fetch sites for the filter
+  const { data: sites } = useQuery({
+    queryKey: ['sites'],
+    queryFn: fetchSites
+  });
 
   const COLORS = ['#0A84FF', '#30D158', '#FF9F0A', '#FF453A', '#BF5AF2', '#5E5CE6'];
 
@@ -94,6 +50,45 @@ const Dashboard = () => {
     show: { opacity: 1, y: 0 }
   };
 
+  if (isLoadingDashboard) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <span className="ml-2 text-lg text-gray-600">Loading dashboard data...</span>
+      </div>
+    );
+  }
+
+  // Use real data or fallback to empty arrays
+  const energyData = dashboardData?.chartData?.energyData || [];
+  const emissionsData = dashboardData?.chartData?.emissionsData || [];
+  const waterData = dashboardData?.chartData?.waterData || [];
+  const wasteData = dashboardData?.environmentalData?.map(item => [
+    { name: 'Hazardous', value: Number(item.total_hazardous) || 0 },
+    { name: 'Non-hazardous', value: Number(item.non_hazardous) || 0 },
+    { name: 'Plastic', value: Number(item.plastic_waste) || 0 },
+    { name: 'E-waste', value: Number(item.e_waste) || 0 },
+    { name: 'Bio-medical', value: Number(item.bio_medical) || 0 },
+    { name: 'Waste oil', value: Number(item.waste_oil) || 0 },
+  ]).flat() || [];
+
+  // Social data
+  const employeeData = dashboardData?.socialData?.map(item => [
+    { name: 'Male Employees', value: Number(item.male_employees) || 0 },
+    { name: 'Female Employees', value: Number(item.female_employees) || 0 },
+    { name: 'Contract Male', value: Number(item.contract_male) || 0 },
+    { name: 'Contract Female', value: Number(item.contract_female) || 0 },
+  ]).flat() || [];
+
+  const benefitsData = dashboardData?.socialData?.map(item => [
+    { name: 'Health Insurance', value: Number(item.health_insurance) || 0 },
+    { name: 'Accident Insurance', value: Number(item.accident_insurance) || 0 },
+    { name: 'Parental Benefits', value: Number(item.parental_benefits) || 0 },
+    { name: 'PF Coverage', value: Number(item.pf_coverage) || 0 },
+    { name: 'Gratuity', value: Number(item.gratuity_coverage) || 0 },
+    { name: 'ESI', value: Number(item.esi_coverage) || 0 },
+  ]).flat() || [];
+
   return (
     <div className="container max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
@@ -109,7 +104,7 @@ const Dashboard = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Sites</SelectItem>
-              {mockSites.map(site => (
+              {sites?.map(site => (
                 <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
               ))}
             </SelectContent>
@@ -138,37 +133,37 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <DashboardCard
               title="ESG Score"
-              value="72/100"
+              value={`${Math.round((dashboardData?.renewablePercentage || 0) * 0.72)}/100`}
               valueClassName="text-esg-blue"
               icon={<BarChart3Icon size={20} />}
               change={{ value: 5, positive: true }}
             >
-              <ProgressRing progress={72} size={60} strokeWidth={6} color="#0A84FF">
-                <span className="text-sm font-semibold">72%</span>
+              <ProgressRing progress={Math.round((dashboardData?.renewablePercentage || 0) * 0.72)} size={60} strokeWidth={6} color="#0A84FF">
+                <span className="text-sm font-semibold">{Math.round((dashboardData?.renewablePercentage || 0) * 0.72)}%</span>
               </ProgressRing>
             </DashboardCard>
             
             <DashboardCard
               title="Environmental Score"
-              value="68/100"
+              value={`${Math.round((dashboardData?.renewablePercentage || 0) * 0.68)}/100`}
               valueClassName="text-esg-green"
               icon={<Leaf size={20} />}
               change={{ value: 3, positive: true }}
             >
-              <ProgressRing progress={68} size={60} strokeWidth={6} color="#30D158">
-                <span className="text-sm font-semibold">68%</span>
+              <ProgressRing progress={Math.round((dashboardData?.renewablePercentage || 0) * 0.68)} size={60} strokeWidth={6} color="#30D158">
+                <span className="text-sm font-semibold">{Math.round((dashboardData?.renewablePercentage || 0) * 0.68)}%</span>
               </ProgressRing>
             </DashboardCard>
             
             <DashboardCard
               title="Social Score"
-              value="78/100"
+              value={dashboardData?.socialData?.length ? "78/100" : "0/100"}
               valueClassName="text-esg-purple"
               icon={<Users size={20} />}
               change={{ value: 7, positive: true }}
             >
-              <ProgressRing progress={78} size={60} strokeWidth={6} color="#BF5AF2">
-                <span className="text-sm font-semibold">78%</span>
+              <ProgressRing progress={dashboardData?.socialData?.length ? 78 : 0} size={60} strokeWidth={6} color="#BF5AF2">
+                <span className="text-sm font-semibold">{dashboardData?.socialData?.length ? 78 : 0}%</span>
               </ProgressRing>
             </DashboardCard>
             
@@ -191,68 +186,102 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <GlassCard className="p-5" hoverable>
               <h3 className="text-base font-medium mb-4">Energy Consumption</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={energyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="value" fill="#0A84FF" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {energyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={energyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="totalElectricity" name="Electricity" fill="#0A84FF" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="renewableEnergy" name="Renewable" fill="#30D158" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="coal" name="Coal" fill="#FF9F0A" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="fossilFuels" name="Fossil Fuels" fill="#FF453A" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                  No energy consumption data available
+                </div>
+              )}
             </GlassCard>
             
             <GlassCard className="p-5" hoverable>
               <h3 className="text-base font-medium mb-4">Air Emissions (MT)</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={emissionsData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="value" fill="#FF453A" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {emissionsData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={emissionsData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="NOx" name="NOx" fill="#FF453A" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="SOx" name="SOx" fill="#FF9F0A" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="PM" name="PM" fill="#5E5CE6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Others" name="Others" fill="#BF5AF2" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                  No air emissions data available
+                </div>
+              )}
             </GlassCard>
             
             <GlassCard className="p-5" hoverable>
               <h3 className="text-base font-medium mb-4">Water Management (KL)</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={waterData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="value" fill="#5E5CE6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {waterData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={waterData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="Withdrawal" fill="#5E5CE6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="ThirdParty" fill="#0A84FF" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Rainwater" fill="#30D158" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Recycled" fill="#FF9F0A" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Discharged" fill="#BF5AF2" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                  No water management data available
+                </div>
+              )}
             </GlassCard>
             
             <GlassCard className="p-5" hoverable>
               <h3 className="text-base font-medium mb-4">Waste Management (MT)</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={wasteData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {wasteData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              {wasteData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={wasteData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {wasteData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                  No waste management data available
+                </div>
+              )}
             </GlassCard>
           </div>
         </motion.div>

@@ -3,10 +3,10 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   BarChart3Icon, 
-  ClipboardCheckIcon, 
-  BuildingIcon,
+  ClipboardCheckIcon,
   CheckSquareIcon,
-  Lightbulb
+  Lightbulb,
+  Settings,
 } from "lucide-react";
 import GlassCard from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -102,13 +102,13 @@ const Index = () => {
           <GlassCard 
             className="p-6 h-full flex flex-col items-center text-center cursor-pointer"
             hoverable
-            onClick={() => navigate("/sites")}
+            onClick={() => navigate("/admin/users")}
           >
             <div className="w-12 h-12 flex items-center justify-center rounded-full bg-purple-100 text-esg-purple mb-4">
-              <BuildingIcon size={24} />
+              <Settings size={24} />
             </div>
-            <h3 className="font-semibold text-lg mb-2">Site Management</h3>
-            <p className="text-gray-600 text-sm">Manage your production units, offices, and subsidiary locations</p>
+            <h3 className="font-semibold text-lg mb-2">Admin</h3>
+            <p className="text-gray-600 text-sm">Manage users, sites, and emission factors</p>
           </GlassCard>
         </motion.div>
       </motion.div>
