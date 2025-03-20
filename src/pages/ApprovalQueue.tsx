@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { 
@@ -12,56 +12,99 @@ import {
   Search, 
   ThumbsDown, 
   ThumbsUp, 
-  X 
+  X,
+  Loader2
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GlassCard from "@/components/ui/GlassCard";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { mockESGData, mockSites, ApprovalStatus, ESGFormData } from "@/types/esg";
+import { fetchSubmissions, updateSubmissionStatus, fetchSubmissionDetails } from "@/services/esgSubmissionService";
+import { ApprovalStatus } from "@/types/esg";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+type Submission = {
+  id: string;
+  site_id: string;
+  status: ApprovalStatus;
+  submitted_by: string;
+  submitted_at: string;
+  updated_at: string;
+  site: {
+    id: string;
+    name: string;
+  };
+};
 
 const ApprovalQueue = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<ApprovalStatus | "all">("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" }>({
-    key: "updatedAt",
+    key: "updated_at",
     direction: "desc"
   });
-  const [selectedSubmission, setSelectedSubmission] = useState<ESGFormData | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
 
-  // Filter data based on search query and filter status
-  const filteredData = mockESGData.filter(submission => {
-    const matchesSearch = searchQuery === "" || 
-      mockSites.find(site => site.id === submission.siteId)?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      submission.submittedBy.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = filterStatus === "all" || submission.status === filterStatus;
-    
-    return matchesSearch && matchesStatus;
+  // Fetch submissions
+  const { data: submissions = [], isLoading: isLoadingSubmissions } = useQuery({
+    queryKey: ['submissions'],
+    queryFn: fetchSubmissions
   });
 
-  // Sort data
-  const sortedData = [...filteredData].sort((a, b) => {
-    const aValue = a[sortConfig.key as keyof ESGFormData];
-    const bValue = b[sortConfig.key as keyof ESGFormData];
-    
-    if (typeof aValue === "string" && typeof bValue === "string") {
-      if (sortConfig.direction === "asc") {
-        return aValue.localeCompare(bValue);
-      } else {
-        return bValue.localeCompare(aValue);
-      }
+  // Mutation for updating status
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status, comment }: { id: string; status: ApprovalStatus; comment?: string }) => {
+      return updateSubmissionStatus(id, status, "Admin User", comment);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['submissions'] });
+      setRejectionDialogOpen(false);
+      setRejectionReason("");
+    },
+    onError: (error) => {
+      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
     }
-    
-    return 0;
   });
+
+  // Filter data based on search query and filter status
+  const filteredData = useMemo(() => {
+    return submissions.filter((submission: Submission) => {
+      const matchesSearch = searchQuery === "" || 
+        submission.site.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        submission.submitted_by.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = filterStatus === "all" || submission.status === filterStatus;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [submissions, searchQuery, filterStatus]);
+
+  // Sort data
+  const sortedData = useMemo(() => {
+    return [...filteredData].sort((a: any, b: any) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        if (sortConfig.direction === "asc") {
+          return aValue.localeCompare(bValue);
+        } else {
+          return bValue.localeCompare(aValue);
+        }
+      }
+      
+      return 0;
+    });
+  }, [filteredData, sortConfig]);
 
   const requestSort = (key: string) => {
     let direction: "asc" | "desc" = "asc";
@@ -71,25 +114,30 @@ const ApprovalQueue = () => {
     setSortConfig({ key, direction });
   };
 
-  const handleApprove = (submission: ESGFormData) => {
-    toast.success(`Submission for ${mockSites.find(site => site.id === submission.siteId)?.name} has been approved.`);
+  const handleApprove = (submission: Submission) => {
+    statusMutation.mutate({ 
+      id: submission.id, 
+      status: 'approved' 
+    });
+    
+    toast.success(`Submission for ${submission.site.name} has been approved.`);
   };
 
   const handleReject = () => {
     if (selectedSubmission) {
-      toast.success(`Submission for ${mockSites.find(site => site.id === selectedSubmission.siteId)?.name} has been rejected.`);
-      setRejectionDialogOpen(false);
-      setRejectionReason("");
+      statusMutation.mutate({ 
+        id: selectedSubmission.id, 
+        status: 'rejected', 
+        comment: rejectionReason 
+      });
+      
+      toast.success(`Submission for ${selectedSubmission.site.name} has been rejected.`);
     }
   };
 
-  const handleOpenRejectDialog = (submission: ESGFormData) => {
+  const handleOpenRejectDialog = (submission: Submission) => {
     setSelectedSubmission(submission);
     setRejectionDialogOpen(true);
-  };
-
-  const getSiteName = (siteId: string) => {
-    return mockSites.find(site => site.id === siteId)?.name || "Unknown Site";
   };
 
   const formatDate = (dateString: string) => {
@@ -204,110 +252,138 @@ const ApprovalQueue = () => {
                   >
                     Rejected
                   </button>
+                  <button
+                    onClick={() => {
+                      setFilterStatus("draft");
+                      setIsFilterOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm rounded-md ${
+                      filterStatus === "draft" ? "bg-esg-blue/10 text-esg-blue" : "hover:bg-gray-100"
+                    }`}
+                  >
+                    Drafts
+                  </button>
                 </div>
               </motion.div>
             )}
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 px-4 font-medium">Status</th>
-                <th
-                  className="text-left py-3 px-4 font-medium cursor-pointer"
-                  onClick={() => requestSort("siteId")}
-                >
-                  <div className="flex items-center gap-1">
-                    Site
-                    {sortConfig.key === "siteId" && (
-                      sortConfig.direction === "asc" ? <ChevronUp size={16} /> : <ChevronDown size={16} />
-                    )}
-                  </div>
-                </th>
-                <th className="text-left py-3 px-4 font-medium">Submitted By</th>
-                <th
-                  className="text-left py-3 px-4 font-medium cursor-pointer"
-                  onClick={() => requestSort("updatedAt")}
-                >
-                  <div className="flex items-center gap-1">
-                    Date
-                    {sortConfig.key === "updatedAt" && (
-                      sortConfig.direction === "asc" ? <ChevronUp size={16} /> : <ChevronDown size={16} />
-                    )}
-                  </div>
-                </th>
-                <th className="text-right py-3 px-4 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedData.length > 0 ? (
-                sortedData.map((submission) => (
-                  <tr key={submission.id} className="border-b hover:bg-gray-50">
-                    <td className="py-4 px-4">
-                      <StatusBadge status={submission.status} />
-                    </td>
-                    <td className="py-4 px-4">{getSiteName(submission.siteId)}</td>
-                    <td className="py-4 px-4">
-                      <div>
-                        <p className="font-medium">{submission.submittedBy.name}</p>
-                        <p className="text-sm text-gray-500">{submission.submittedBy.department}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <Clock size={16} className="text-gray-400" />
-                        <span>{formatDate(submission.updatedAt)}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center gap-1"
-                          onClick={() => navigate(`/form/${submission.id}`)}
-                        >
-                          <Eye size={14} />
-                          View
-                        </Button>
-                        
-                        {submission.status === "pending" && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex items-center gap-1 text-esg-red hover:text-esg-red border-esg-red/20 hover:border-esg-red/30 hover:bg-esg-red/10"
-                              onClick={() => handleOpenRejectDialog(submission)}
-                            >
-                              <ThumbsDown size={14} />
-                              Reject
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="flex items-center gap-1 bg-esg-green hover:bg-esg-green/90"
-                              onClick={() => handleApprove(submission)}
-                            >
-                              <ThumbsUp size={14} />
-                              Approve
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-500">
-                    No submissions found matching your criteria.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {isLoadingSubmissions ? (
+          <div className="py-20 flex flex-col items-center justify-center text-gray-500">
+            <Loader2 size={36} className="animate-spin mb-4" />
+            <p>Loading submissions...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Status</TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => requestSort("site.name")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Site
+                      {sortConfig.key === "site.name" && (
+                        sortConfig.direction === "asc" ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead>Submitted By</TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => requestSort("updated_at")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Date
+                      {sortConfig.key === "updated_at" && (
+                        sortConfig.direction === "asc" ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedData.length > 0 ? (
+                  sortedData.map((submission: Submission) => (
+                    <TableRow key={submission.id}>
+                      <TableCell>
+                        <StatusBadge status={submission.status} />
+                      </TableCell>
+                      <TableCell>{submission.site.name}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{submission.submitted_by}</p>
+                          <p className="text-sm text-gray-500">Reporter</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Clock size={16} className="text-gray-400" />
+                          <span>{formatDate(submission.updated_at)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1"
+                            onClick={() => navigate(`/form/${submission.id}`)}
+                          >
+                            <Eye size={14} />
+                            View
+                          </Button>
+                          
+                          {submission.status === "pending" && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-1 text-esg-red hover:text-esg-red border-esg-red/20 hover:border-esg-red/30 hover:bg-esg-red/10"
+                                onClick={() => handleOpenRejectDialog(submission)}
+                                disabled={statusMutation.isPending}
+                              >
+                                {statusMutation.isPending ? (
+                                  <Loader2 size={14} className="animate-spin" />
+                                ) : (
+                                  <ThumbsDown size={14} />
+                                )}
+                                Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex items-center gap-1 bg-esg-green hover:bg-esg-green/90"
+                                onClick={() => handleApprove(submission)}
+                                disabled={statusMutation.isPending}
+                              >
+                                {statusMutation.isPending ? (
+                                  <Loader2 size={14} className="animate-spin" />
+                                ) : (
+                                  <ThumbsUp size={14} />
+                                )}
+                                Approve
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      No submissions found matching your criteria.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </GlassCard>
 
       <Dialog open={rejectionDialogOpen} onOpenChange={setRejectionDialogOpen}>
@@ -332,14 +408,18 @@ const ApprovalQueue = () => {
             <Button
               variant="outline"
               onClick={() => setRejectionDialogOpen(false)}
+              disabled={statusMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={handleReject}
-              disabled={!rejectionReason.trim()}
+              disabled={!rejectionReason.trim() || statusMutation.isPending}
             >
+              {statusMutation.isPending ? (
+                <Loader2 size={16} className="animate-spin mr-2" />
+              ) : null}
               Confirm Rejection
             </Button>
           </DialogFooter>

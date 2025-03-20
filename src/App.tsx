@@ -20,6 +20,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const FormEntry = lazy(() => import("./pages/FormEntry"));
 const ApprovalQueue = lazy(() => import("./pages/ApprovalQueue"));
 const Sites = lazy(() => import("./pages/Sites"));
+const EmissionFactors = lazy(() => import("./pages/EmissionFactors"));
 
 const queryClient = new QueryClient();
 
@@ -39,8 +40,10 @@ const App = () => (
                   <Route path="/" element={<PageTransition><Index /></PageTransition>} />
                   <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
                   <Route path="/form" element={<PageTransition><FormEntry /></PageTransition>} />
+                  <Route path="/form/:id" element={<PageTransition><FormEntry /></PageTransition>} />
                   <Route path="/approvals" element={<PageTransition><ApprovalQueue /></PageTransition>} />
                   <Route path="/sites" element={<PageTransition><Sites /></PageTransition>} />
+                  <Route path="/emission-factors" element={<PageTransition><EmissionFactors /></PageTransition>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
