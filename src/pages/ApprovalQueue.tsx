@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -23,7 +22,7 @@ import GlassCard from "@/components/ui/GlassCard";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchSubmissions, updateSubmissionStatus, fetchSubmissionDetails } from "@/services/esgSubmissionService";
+import { fetchSubmissions, updateSubmissionStatus } from "@/services/esgSubmissionService";
 import { ApprovalStatus } from "@/types/esg";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -54,13 +53,11 @@ const ApprovalQueue = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
 
-  // Fetch submissions
   const { data: submissions = [], isLoading: isLoadingSubmissions } = useQuery({
     queryKey: ['submissions'],
     queryFn: fetchSubmissions
   });
 
-  // Mutation for updating status
   const statusMutation = useMutation({
     mutationFn: ({ id, status, comment }: { id: string; status: ApprovalStatus; comment?: string }) => {
       return updateSubmissionStatus(id, status, "Admin User", comment);
@@ -75,7 +72,6 @@ const ApprovalQueue = () => {
     }
   });
 
-  // Filter data based on search query and filter status
   const filteredData = useMemo(() => {
     return submissions.filter((submission: Submission) => {
       const matchesSearch = searchQuery === "" || 
@@ -88,7 +84,6 @@ const ApprovalQueue = () => {
     });
   }, [submissions, searchQuery, filterStatus]);
 
-  // Sort data
   const sortedData = useMemo(() => {
     return [...filteredData].sort((a: any, b: any) => {
       const aValue = a[sortConfig.key];

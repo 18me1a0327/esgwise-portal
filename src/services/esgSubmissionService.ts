@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { ApprovalStatus } from "@/types/esg";
 
 export const createSubmission = async (
   siteId: string, 
@@ -151,7 +152,7 @@ export const saveAsDraft = async (
 
 export const updateSubmissionStatus = async (
   submissionId: string, 
-  status: 'pending' | 'approved' | 'rejected',
+  status: 'pending' | 'approved' | 'rejected' | 'draft',
   reviewer: string,
   comment?: string
 ) => {
@@ -188,7 +189,13 @@ export const fetchSubmissions = async () => {
     throw new Error('Failed to fetch submissions');
   }
 
-  return data || [];
+  // Transform the data to ensure status is of type ApprovalStatus
+  const transformedData = data?.map(submission => ({
+    ...submission,
+    status: submission.status as ApprovalStatus
+  })) || [];
+
+  return transformedData;
 };
 
 export const fetchSubmissionDetails = async (submissionId: string) => {
@@ -206,6 +213,12 @@ export const fetchSubmissionDetails = async (submissionId: string) => {
     console.error('Error fetching submission:', submissionError);
     throw new Error('Failed to fetch submission');
   }
+
+  // Transform status to ApprovalStatus type
+  const transformedSubmission = {
+    ...submission,
+    status: submission.status as ApprovalStatus
+  };
 
   // Fetch environmental data
   const { data: environmentalData, error: envError } = await supabase
@@ -244,7 +257,7 @@ export const fetchSubmissionDetails = async (submissionId: string) => {
   }
 
   return {
-    submission,
+    submission: transformedSubmission,
     environmentalData: environmentalData || {},
     socialData: socialData || {},
     governanceData: governanceData || {}
