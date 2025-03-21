@@ -22,9 +22,10 @@ import GlassCard from "@/components/ui/GlassCard";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchSubmissions, updateSubmissionStatus } from "@/services/esgSubmissionService";
+import { fetchSubmissions, updateSubmissionStatus, fetchSubmissionDetails } from "@/services/esgSubmissionService";
 import { ApprovalStatus } from "@/types/esg";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Submission = {
   id: string;
@@ -52,10 +53,18 @@ const ApprovalQueue = () => {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("environmental");
 
   const { data: submissions = [], isLoading: isLoadingSubmissions } = useQuery({
     queryKey: ['submissions'],
     queryFn: fetchSubmissions
+  });
+
+  const { data: submissionDetails, isLoading: isLoadingDetails } = useQuery({
+    queryKey: ['submissionDetails', selectedSubmission?.id],
+    queryFn: () => fetchSubmissionDetails(selectedSubmission?.id || ''),
+    enabled: !!selectedSubmission?.id && viewDialogOpen
   });
 
   const statusMutation = useMutation({
@@ -135,6 +144,11 @@ const ApprovalQueue = () => {
     setRejectionDialogOpen(true);
   };
 
+  const handleOpenViewDialog = (submission: Submission) => {
+    setSelectedSubmission(submission);
+    setViewDialogOpen(true);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat("en-US", {
@@ -144,6 +158,309 @@ const ApprovalQueue = () => {
       hour: "2-digit",
       minute: "2-digit"
     }).format(date);
+  };
+
+  const renderEnvironmentalData = () => {
+    const envData = submissionDetails?.environmentalData;
+    if (!envData) return <p>No environmental data available</p>;
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-md font-semibold mb-3">Energy Consumption</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Total Electricity</TableCell>
+                  <TableCell>{envData.total_electricity || 0} kWh</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Renewable PPA</TableCell>
+                  <TableCell>{envData.renewable_ppa || 0} kWh</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Renewable Rooftop</TableCell>
+                  <TableCell>{envData.renewable_rooftop || 0} kWh</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Coal Consumption</TableCell>
+                  <TableCell>{envData.coal_consumption || 0} tonnes</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">HSD Consumption</TableCell>
+                  <TableCell>{envData.hsd_consumption || 0} kL</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div>
+            <h3 className="text-md font-semibold mb-3">Emissions</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">NOx</TableCell>
+                  <TableCell>{envData.nox || 0} tonnes</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">SOx</TableCell>
+                  <TableCell>{envData.sox || 0} tonnes</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">PM</TableCell>
+                  <TableCell>{envData.pm || 0} tonnes</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Total Emissions</TableCell>
+                  <TableCell>{envData.total_emissions || 0} tCO₂e</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-md font-semibold mb-3">Water Management</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Water Withdrawal</TableCell>
+                  <TableCell>{envData.water_withdrawal || 0} m³</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Third Party Water</TableCell>
+                  <TableCell>{envData.third_party_water || 0} m³</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Rainwater</TableCell>
+                  <TableCell>{envData.rainwater || 0} m³</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Water Discharged</TableCell>
+                  <TableCell>{envData.water_discharged || 0} m³</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div>
+            <h3 className="text-md font-semibold mb-3">Waste Management</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Hazardous Waste</TableCell>
+                  <TableCell>{envData.total_hazardous || 0} tonnes</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Non-hazardous Waste</TableCell>
+                  <TableCell>{envData.non_hazardous || 0} tonnes</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Plastic Waste</TableCell>
+                  <TableCell>{envData.plastic_waste || 0} tonnes</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">E-waste</TableCell>
+                  <TableCell>{envData.e_waste || 0} tonnes</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSocialData = () => {
+    const socData = submissionDetails?.socialData;
+    if (!socData) return <p>No social data available</p>;
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-md font-semibold mb-3">Workforce</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Total Employees</TableCell>
+                  <TableCell>{socData.total_employees || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Male Employees</TableCell>
+                  <TableCell>{socData.male_employees || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Female Employees</TableCell>
+                  <TableCell>{socData.female_employees || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Contract Male</TableCell>
+                  <TableCell>{socData.contract_male || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Contract Female</TableCell>
+                  <TableCell>{socData.contract_female || 0}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div>
+            <h3 className="text-md font-semibold mb-3">Safety</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Employee Injuries</TableCell>
+                  <TableCell>{socData.injuries_employees || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Worker Injuries</TableCell>
+                  <TableCell>{socData.injuries_workers || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Employee Fatalities</TableCell>
+                  <TableCell>{socData.fatalities_employees || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Worker Fatalities</TableCell>
+                  <TableCell>{socData.fatalities_workers || 0}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-md font-semibold mb-3">Training</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">EHS Training</TableCell>
+                  <TableCell>{socData.ehs_training || 0} hours</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">GMP Training</TableCell>
+                  <TableCell>{socData.gmp_training || 0} hours</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Other Training</TableCell>
+                  <TableCell>{socData.other_training || 0} hours</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div>
+            <h3 className="text-md font-semibold mb-3">Benefits</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">PF Coverage</TableCell>
+                  <TableCell>{socData.pf_coverage || 0}%</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">ESI Coverage</TableCell>
+                  <TableCell>{socData.esi_coverage || 0}%</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Health Insurance</TableCell>
+                  <TableCell>{socData.health_insurance || 0}%</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Parental Benefits</TableCell>
+                  <TableCell>{socData.parental_benefits || 0}%</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGovernanceData = () => {
+    const govData = submissionDetails?.governanceData;
+    if (!govData) return <p>No governance data available</p>;
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-md font-semibold mb-3">Board Composition</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Total Board Members</TableCell>
+                  <TableCell>{govData.board_members || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Women Percentage</TableCell>
+                  <TableCell>{govData.women_percentage || 0}%</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Under 30 years</TableCell>
+                  <TableCell>{govData.board_under30 || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">30-50 years</TableCell>
+                  <TableCell>{govData.board_30to50 || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Over 50 years</TableCell>
+                  <TableCell>{govData.board_above50 || 0}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div>
+            <h3 className="text-md font-semibold mb-3">Incidents & Compliance</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Legal Fines</TableCell>
+                  <TableCell>{govData.legal_fines || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Corruption Incidents</TableCell>
+                  <TableCell>{govData.corruption_incidents || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Cybersecurity Incidents</TableCell>
+                  <TableCell>{govData.cybersecurity_incidents || 0}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-md font-semibold mb-3">Board Experience</h3>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Under 5 years</TableCell>
+                  <TableCell>{govData.exp_under5 || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">5-10 years</TableCell>
+                  <TableCell>{govData.exp_5to10 || 0}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Over 10 years</TableCell>
+                  <TableCell>{govData.exp_above10 || 0}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -327,7 +644,7 @@ const ApprovalQueue = () => {
                             variant="outline"
                             size="sm"
                             className="flex items-center gap-1"
-                            onClick={() => navigate(`/form/${submission.id}`)}
+                            onClick={() => handleOpenViewDialog(submission)}
                           >
                             <Eye size={14} />
                             View
@@ -420,8 +737,94 @@ const ApprovalQueue = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Submission Details</DialogTitle>
+            <DialogDescription>
+              {selectedSubmission && (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
+                  <div>
+                    <p className="text-sm"><span className="font-medium">Site:</span> {selectedSubmission.site.name}</p>
+                    <p className="text-sm"><span className="font-medium">Submitted by:</span> {selectedSubmission.submitted_by}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm"><span className="font-medium">Status:</span> <StatusBadge status={selectedSubmission.status} /></p>
+                    <p className="text-sm"><span className="font-medium">Date:</span> {formatDate(selectedSubmission.updated_at)}</p>
+                  </div>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingDetails ? (
+            <div className="py-10 flex justify-center items-center">
+              <Loader2 size={24} className="animate-spin" />
+            </div>
+          ) : (
+            <div className="py-4">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="environmental">Environmental</TabsTrigger>
+                  <TabsTrigger value="social">Social</TabsTrigger>
+                  <TabsTrigger value="governance">Governance</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="environmental">
+                  {renderEnvironmentalData()}
+                </TabsContent>
+                
+                <TabsContent value="social">
+                  {renderSocialData()}
+                </TabsContent>
+                
+                <TabsContent value="governance">
+                  {renderGovernanceData()}
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+          
+          <DialogFooter className="sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setViewDialogOpen(false)}
+            >
+              Close
+            </Button>
+            
+            {selectedSubmission?.status === "pending" && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="text-esg-red hover:text-esg-red border-esg-red/20 hover:border-esg-red/30 hover:bg-esg-red/10"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    handleOpenRejectDialog(selectedSubmission);
+                  }}
+                >
+                  <ThumbsDown size={14} className="mr-2" />
+                  Reject
+                </Button>
+                <Button
+                  className="bg-esg-green hover:bg-esg-green/90"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    handleApprove(selectedSubmission);
+                  }}
+                >
+                  <ThumbsUp size={14} className="mr-2" />
+                  Approve
+                </Button>
+              </div>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 export default ApprovalQueue;
+

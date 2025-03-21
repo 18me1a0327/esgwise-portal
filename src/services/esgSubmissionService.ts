@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ApprovalStatus } from "@/types/esg";
 
@@ -11,7 +10,6 @@ export const createSubmission = async (
   socialData: any,
   governanceData: any
 ) => {
-  // Begin a transaction by starting with the main submission
   const { data: submission, error: submissionError } = await supabase
     .from('esg_submissions')
     .insert({
@@ -34,7 +32,6 @@ export const createSubmission = async (
     throw new Error('No submission ID returned');
   }
 
-  // Add environmental data
   const { error: envError } = await supabase
     .from('environmental_data')
     .insert({
@@ -47,7 +44,6 @@ export const createSubmission = async (
     throw new Error('Failed to add environmental data');
   }
 
-  // Add social data
   const { error: socialError } = await supabase
     .from('social_data')
     .insert({
@@ -60,7 +56,6 @@ export const createSubmission = async (
     throw new Error('Failed to add social data');
   }
 
-  // Add governance data
   const { error: govError } = await supabase
     .from('governance_data')
     .insert({
@@ -85,7 +80,6 @@ export const saveAsDraft = async (
   socialData: any,
   governanceData: any
 ) => {
-  // Same process but with draft status
   const { data: submission, error: submissionError } = await supabase
     .from('esg_submissions')
     .insert({
@@ -108,7 +102,6 @@ export const saveAsDraft = async (
     throw new Error('No submission ID returned');
   }
 
-  // Add environmental data
   const { error: envError } = await supabase
     .from('environmental_data')
     .insert({
@@ -121,7 +114,6 @@ export const saveAsDraft = async (
     throw new Error('Failed to add environmental data');
   }
 
-  // Add social data
   const { error: socialError } = await supabase
     .from('social_data')
     .insert({
@@ -134,7 +126,6 @@ export const saveAsDraft = async (
     throw new Error('Failed to add social data');
   }
 
-  // Add governance data
   const { error: govError } = await supabase
     .from('governance_data')
     .insert({
@@ -189,7 +180,6 @@ export const fetchSubmissions = async () => {
     throw new Error('Failed to fetch submissions');
   }
 
-  // Transform the data to ensure status is of type ApprovalStatus
   const transformedData = data?.map(submission => ({
     ...submission,
     status: submission.status as ApprovalStatus
@@ -199,7 +189,6 @@ export const fetchSubmissions = async () => {
 };
 
 export const fetchSubmissionDetails = async (submissionId: string) => {
-  // Fetch the submission with site info
   const { data: submission, error: submissionError } = await supabase
     .from('esg_submissions')
     .select(`
@@ -214,25 +203,22 @@ export const fetchSubmissionDetails = async (submissionId: string) => {
     throw new Error('Failed to fetch submission');
   }
 
-  // Transform status to ApprovalStatus type
   const transformedSubmission = {
     ...submission,
     status: submission.status as ApprovalStatus
   };
 
-  // Fetch environmental data
   const { data: environmentalData, error: envError } = await supabase
     .from('environmental_data')
     .select('*')
     .eq('submission_id', submissionId)
     .single();
 
-  if (envError && envError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+  if (envError && envError.code !== 'PGRST116') {
     console.error('Error fetching environmental data:', envError);
     throw new Error('Failed to fetch environmental data');
   }
 
-  // Fetch social data
   const { data: socialData, error: socialError } = await supabase
     .from('social_data')
     .select('*')
@@ -244,7 +230,6 @@ export const fetchSubmissionDetails = async (submissionId: string) => {
     throw new Error('Failed to fetch social data');
   }
 
-  // Fetch governance data
   const { data: governanceData, error: govError } = await supabase
     .from('governance_data')
     .select('*')
@@ -262,4 +247,112 @@ export const fetchSubmissionDetails = async (submissionId: string) => {
     socialData: socialData || {},
     governanceData: governanceData || {}
   };
+};
+
+export type User = {
+  id: string;
+  username: string;
+  email: string;
+  role: 'admin' | 'user' | 'approver';
+  status: 'active' | 'inactive';
+  created_at: string;
+  last_login?: string;
+};
+
+const mockUsers: User[] = [
+  {
+    id: '1',
+    username: 'admin',
+    email: 'admin@example.com',
+    role: 'admin',
+    status: 'active',
+    created_at: '2023-01-01T00:00:00Z',
+    last_login: '2023-08-15T14:30:00Z'
+  },
+  {
+    id: '2',
+    username: 'approver1',
+    email: 'approver@example.com',
+    role: 'approver',
+    status: 'active',
+    created_at: '2023-02-15T00:00:00Z',
+    last_login: '2023-08-10T09:45:00Z'
+  },
+  {
+    id: '3',
+    username: 'user1',
+    email: 'user1@example.com',
+    role: 'user',
+    status: 'active',
+    created_at: '2023-03-20T00:00:00Z',
+    last_login: '2023-08-14T16:20:00Z'
+  },
+  {
+    id: '4',
+    username: 'user2',
+    email: 'user2@example.com',
+    role: 'user',
+    status: 'inactive',
+    created_at: '2023-04-05T00:00:00Z'
+  }
+];
+
+export const fetchUsers = async (): Promise<User[]> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(mockUsers);
+    }, 500);
+  });
+};
+
+export const updateUserStatus = async (userId: string, status: 'active' | 'inactive'): Promise<User> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const updatedUsers = mockUsers.map(user => 
+        user.id === userId ? { ...user, status } : user
+      );
+      const updatedUser = updatedUsers.find(user => user.id === userId);
+      if (!updatedUser) throw new Error('User not found');
+      resolve(updatedUser);
+    }, 500);
+  });
+};
+
+export const updateUserRole = async (userId: string, role: 'admin' | 'user' | 'approver'): Promise<User> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const updatedUsers = mockUsers.map(user => 
+        user.id === userId ? { ...user, role } : user
+      );
+      const updatedUser = updatedUsers.find(user => user.id === userId);
+      if (!updatedUser) throw new Error('User not found');
+      resolve(updatedUser);
+    }, 500);
+  });
+};
+
+export const createUser = async (user: Omit<User, 'id' | 'created_at'>): Promise<User> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const newUser: User = {
+        ...user,
+        id: Math.random().toString(36).substring(2, 11),
+        created_at: new Date().toISOString()
+      };
+      mockUsers.push(newUser);
+      resolve(newUser);
+    }, 500);
+  });
+};
+
+export const deleteUser = async (userId: string): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const index = mockUsers.findIndex(user => user.id === userId);
+      if (index !== -1) {
+        mockUsers.splice(index, 1);
+      }
+      resolve();
+    }, 500);
+  });
 };
