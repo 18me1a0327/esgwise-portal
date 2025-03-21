@@ -1,46 +1,63 @@
 
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from '@/components/ui/sonner';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
 
-import Layout from './components/Layout/Layout';
-import PageTransition from './components/Layout/PageTransition';
+// Layout components
+import Navbar from "./components/Layout/Navbar";
+import Sidebar from "./components/Layout/Sidebar";
+import PageTransition from "./components/Layout/PageTransition";
 
-import Index from './pages/Index';
-import NotFound from './pages/NotFound';
-import Dashboard from './pages/Dashboard';
-import FormEntry from './pages/FormEntry';
-import ApprovalQueue from './pages/ApprovalQueue';
-import UserManagement from './pages/admin/UserManagement';
-import Sites from './pages/Sites';
-import EmissionFactors from './pages/EmissionFactors';
-import Reports from './pages/Reports';
+// Pages
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
 
-import './App.css';
+// Lazy loaded pages for better performance
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const FormEntry = lazy(() => import("./pages/FormEntry"));
+const ApprovalQueue = lazy(() => import("./pages/ApprovalQueue"));
+const Sites = lazy(() => import("./pages/Sites"));
+const EmissionFactors = lazy(() => import("./pages/EmissionFactors"));
+const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 
 const queryClient = new QueryClient();
 
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<PageTransition><Index /></PageTransition>} />
-          <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
-          <Route path="/form" element={<PageTransition><FormEntry /></PageTransition>} />
-          <Route path="/form/:id" element={<PageTransition><FormEntry /></PageTransition>} />
-          <Route path="/approvals" element={<PageTransition><ApprovalQueue /></PageTransition>} />
-          <Route path="/reports" element={<PageTransition><Reports /></PageTransition>} />
-          <Route path="/admin/users" element={<PageTransition><UserManagement /></PageTransition>} />
-          <Route path="/sites" element={<PageTransition><Sites /></PageTransition>} />
-          <Route path="/admin/emission-factors" element={<PageTransition><EmissionFactors /></PageTransition>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Layout>
-      <Toaster position="top-right" />
-    </QueryClientProvider>
-  );
-}
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <div className="flex h-full">
+          <Sidebar />
+          <div className="flex-1 flex flex-col">
+            <Navbar />
+            <main className="flex-1 overflow-y-auto p-6">
+              <Suspense fallback={<div className="h-full w-full flex items-center justify-center">Loading...</div>}>
+                <Routes>
+                  <Route path="/" element={<PageTransition><Index /></PageTransition>} />
+                  <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
+                  <Route path="/form" element={<PageTransition><FormEntry /></PageTransition>} />
+                  <Route path="/form/:id" element={<PageTransition><FormEntry /></PageTransition>} />
+                  <Route path="/approvals" element={<PageTransition><ApprovalQueue /></PageTransition>} />
+                  
+                  {/* Admin routes */}
+                  <Route path="/admin/sites" element={<PageTransition><Sites /></PageTransition>} />
+                  <Route path="/admin/emission-factors" element={<PageTransition><EmissionFactors /></PageTransition>} />
+                  <Route path="/admin/users" element={<PageTransition><UserManagement /></PageTransition>} />
+                  
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </main>
+          </div>
+        </div>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;
