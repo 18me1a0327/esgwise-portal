@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Plus, Save, Trash2, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Save, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GlassCard from "@/components/ui/GlassCard";
@@ -32,23 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-
-// Placeholder service functions - would connect to a real backend
-const fetchUsers = async () => {
-  // Mockup only - would be replaced with real API call
-  return [
-    { id: '1', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
-    { id: '2', name: 'Manager User', email: 'manager@example.com', role: 'manager' },
-    { id: '3', name: 'Standard User', email: 'user@example.com', role: 'user' },
-  ];
-};
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-};
+import { getUsers, createUser, updateUser, deleteUser, User } from "@/services/userService";
 
 const UserManagement = () => {
   const navigate = useNavigate();
@@ -63,18 +47,20 @@ const UserManagement = () => {
     role: "user",
   });
 
-  // Fetch users
+  // Fetch users from Supabase
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
-    queryFn: fetchUsers,
+    queryFn: getUsers,
   });
 
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: (user: User) => {
-      // This is a placeholder - would be replaced with a real API call
-      console.log("Updating user:", user);
-      return Promise.resolve(user);
+      return updateUser(user.id, {
+        name: user.name,
+        email: user.email,
+        role: user.role
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -88,10 +74,8 @@ const UserManagement = () => {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (user: Partial<User>) => {
-      // This is a placeholder - would be replaced with a real API call
-      console.log("Creating user:", user);
-      return Promise.resolve({ ...user, id: Math.random().toString() } as User);
+    mutationFn: (user: Omit<User, "id" | "created_at">) => {
+      return createUser(user);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -111,9 +95,7 @@ const UserManagement = () => {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) => {
-      // This is a placeholder - would be replaced with a real API call
-      console.log("Deleting user:", id);
-      return Promise.resolve();
+      return deleteUser(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -137,7 +119,9 @@ const UserManagement = () => {
   };
 
   const handleCreate = () => {
-    createMutation.mutate(newUser);
+    if (newUser.name && newUser.email && newUser.role) {
+      createMutation.mutate(newUser as Omit<User, "id" | "created_at">);
+    }
   };
 
   const handleDelete = () => {

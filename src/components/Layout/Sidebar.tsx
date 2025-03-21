@@ -14,14 +14,17 @@ import {
   XIcon,
   Users,
   Shield,
-  Database
+  Database,
+  FileBarChart2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Sidebar = () => {
   const [expanded, setExpanded] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const toggleSidebar = () => {
     setExpanded(!expanded);
@@ -179,6 +182,7 @@ const Sidebar = () => {
             <NavItem to="/" icon={<HomeIcon size={20} />} label="Home" />
             <NavItem to="/dashboard" icon={<BarChart3Icon size={20} />} label="Dashboard" />
             <NavItem to="/form" icon={<ClipboardCheckIcon size={20} />} label="Data Collection" />
+            <NavItem to="/reports" icon={<FileBarChart2 size={20} />} label="Reports" />
             <NavItem to="/approvals" icon={<CheckSquareIcon size={20} />} label="Approval Queue" />
             
             {/* Admin Section */}
