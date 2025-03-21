@@ -1,825 +1,853 @@
-import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { 
-  ChevronDown, 
-  ChevronLeft, 
-  ChevronUp, 
-  Clock, 
-  Eye, 
-  Filter, 
-  Search, 
-  ThumbsDown, 
-  ThumbsUp, 
-  X,
-  Loader2
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import GlassCard from "@/components/ui/GlassCard";
-import StatusBadge from "@/components/ui/StatusBadge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { fetchSubmissions, updateSubmissionStatus, fetchSubmissionDetails } from "@/services/esgSubmissionService";
-import { ApprovalStatus } from "@/types/esg";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type Submission = {
-  id: string;
-  site_id: string;
-  status: ApprovalStatus;
-  submitted_by: string;
-  submitted_at: string;
-  updated_at: string;
-  site: {
-    id: string;
-    name: string;
-  };
-};
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { 
+  Check, 
+  X, 
+  Eye, 
+  ChevronDown, 
+  ChevronUp 
+} from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { 
+  getSubmissionsForApproval, 
+  approveSubmission, 
+  rejectSubmission, 
+  getSubmissionById 
+} from '@/services/esgSubmissionService';
+import { ESGSubmission } from '@/types/esg';
+import { toast } from 'sonner';
 
 const ApprovalQueue = () => {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<ApprovalStatus | "all">("all");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" }>({
-    key: "updated_at",
-    direction: "desc"
-  });
-  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<ESGSubmission | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("environmental");
-
-  const { data: submissions = [], isLoading: isLoadingSubmissions } = useQuery({
-    queryKey: ['submissions'],
-    queryFn: fetchSubmissions
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    energy: false,
+    emissions: false,
+    water: false,
+    waste: false,
+    workforce: false,
+    safety: false,
+    training: false,
+    benefits: false,
+    governance: false,
+    compliance: false,
+    experience: false
   });
 
-  const { data: submissionDetails, isLoading: isLoadingDetails } = useQuery({
-    queryKey: ['submissionDetails', selectedSubmission?.id],
-    queryFn: () => fetchSubmissionDetails(selectedSubmission?.id || ''),
-    enabled: !!selectedSubmission?.id && viewDialogOpen
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: ({ id, status, comment }: { id: string; status: ApprovalStatus; comment?: string }) => {
-      return updateSubmissionStatus(id, status, "Admin User", comment);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['submissions'] });
-      setRejectionDialogOpen(false);
-      setRejectionReason("");
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
-    }
-  });
-
-  const filteredData = useMemo(() => {
-    return submissions.filter((submission: Submission) => {
-      const matchesSearch = searchQuery === "" || 
-        submission.site.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        submission.submitted_by.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesStatus = filterStatus === "all" || submission.status === filterStatus;
-      
-      return matchesSearch && matchesStatus;
-    });
-  }, [submissions, searchQuery, filterStatus]);
-
-  const sortedData = useMemo(() => {
-    return [...filteredData].sort((a: any, b: any) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
-      
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        if (sortConfig.direction === "asc") {
-          return aValue.localeCompare(bValue);
-        } else {
-          return bValue.localeCompare(aValue);
-        }
-      }
-      
-      return 0;
-    });
-  }, [filteredData, sortConfig]);
-
-  const requestSort = (key: string) => {
-    let direction: "asc" | "desc" = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    }
-    setSortConfig({ key, direction });
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
   };
 
-  const handleApprove = (submission: Submission) => {
-    statusMutation.mutate({ 
-      id: submission.id, 
-      status: 'approved' 
-    });
-    
-    toast.success(`Submission for ${submission.site.name} has been approved.`);
-  };
+  const { data: submissions = [], refetch } = useQuery({
+    queryKey: ['approval-submissions'],
+    queryFn: getSubmissionsForApproval
+  });
 
-  const handleReject = () => {
-    if (selectedSubmission) {
-      statusMutation.mutate({ 
-        id: selectedSubmission.id, 
-        status: 'rejected', 
-        comment: rejectionReason 
-      });
-      
-      toast.success(`Submission for ${selectedSubmission.site.name} has been rejected.`);
+  const handleView = async (id: string) => {
+    try {
+      const submission = await getSubmissionById(id);
+      setSelectedSubmission(submission);
+      setViewDialogOpen(true);
+    } catch (error) {
+      toast.error('Failed to load submission details');
+      console.error(error);
     }
   };
 
-  const handleOpenRejectDialog = (submission: Submission) => {
-    setSelectedSubmission(submission);
-    setRejectionDialogOpen(true);
+  const handleApprove = async (id: string) => {
+    try {
+      await approveSubmission(id);
+      toast.success('Submission approved successfully');
+      refetch();
+    } catch (error) {
+      toast.error('Failed to approve submission');
+      console.error(error);
+    }
   };
 
-  const handleOpenViewDialog = (submission: Submission) => {
-    setSelectedSubmission(submission);
-    setViewDialogOpen(true);
+  const handleReject = async (id: string) => {
+    try {
+      await rejectSubmission(id);
+      toast.success('Submission rejected');
+      refetch();
+    } catch (error) {
+      toast.error('Failed to reject submission');
+      console.error(error);
+    }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    }).format(date);
+  // Type guard for the ESG data
+  const hasFieldData = (submission: ESGSubmission, field: string): boolean => {
+    if (!submission || !submission.data) return false;
+    return typeof submission.data === 'object' && submission.data !== null && field in submission.data;
   };
 
-  const renderEnvironmentalData = () => {
-    const envData = submissionDetails?.environmentalData;
-    if (!envData) return <p>No environmental data available</p>;
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-md font-semibold mb-3">Energy Consumption</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Total Electricity</TableCell>
-                  <TableCell>{envData.total_electricity || 0} kWh</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Renewable PPA</TableCell>
-                  <TableCell>{envData.renewable_ppa || 0} kWh</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Renewable Rooftop</TableCell>
-                  <TableCell>{envData.renewable_rooftop || 0} kWh</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Coal Consumption</TableCell>
-                  <TableCell>{envData.coal_consumption || 0} tonnes</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">HSD Consumption</TableCell>
-                  <TableCell>{envData.hsd_consumption || 0} kL</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-          
-          <div>
-            <h3 className="text-md font-semibold mb-3">Emissions</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">NOx</TableCell>
-                  <TableCell>{envData.nox || 0} tonnes</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">SOx</TableCell>
-                  <TableCell>{envData.sox || 0} tonnes</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">PM</TableCell>
-                  <TableCell>{envData.pm || 0} tonnes</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Total Emissions</TableCell>
-                  <TableCell>{envData.total_emissions || 0} tCO₂e</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-md font-semibold mb-3">Water Management</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Water Withdrawal</TableCell>
-                  <TableCell>{envData.water_withdrawal || 0} m³</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Third Party Water</TableCell>
-                  <TableCell>{envData.third_party_water || 0} m³</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Rainwater</TableCell>
-                  <TableCell>{envData.rainwater || 0} m³</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Water Discharged</TableCell>
-                  <TableCell>{envData.water_discharged || 0} m³</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-          
-          <div>
-            <h3 className="text-md font-semibold mb-3">Waste Management</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Hazardous Waste</TableCell>
-                  <TableCell>{envData.total_hazardous || 0} tonnes</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Non-hazardous Waste</TableCell>
-                  <TableCell>{envData.non_hazardous || 0} tonnes</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Plastic Waste</TableCell>
-                  <TableCell>{envData.plastic_waste || 0} tonnes</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">E-waste</TableCell>
-                  <TableCell>{envData.e_waste || 0} tonnes</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderSocialData = () => {
-    const socData = submissionDetails?.socialData;
-    if (!socData) return <p>No social data available</p>;
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-md font-semibold mb-3">Workforce</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Total Employees</TableCell>
-                  <TableCell>{socData.total_employees || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Male Employees</TableCell>
-                  <TableCell>{socData.male_employees || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Female Employees</TableCell>
-                  <TableCell>{socData.female_employees || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Contract Male</TableCell>
-                  <TableCell>{socData.contract_male || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Contract Female</TableCell>
-                  <TableCell>{socData.contract_female || 0}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-          
-          <div>
-            <h3 className="text-md font-semibold mb-3">Safety</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Employee Injuries</TableCell>
-                  <TableCell>{socData.injuries_employees || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Worker Injuries</TableCell>
-                  <TableCell>{socData.injuries_workers || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Employee Fatalities</TableCell>
-                  <TableCell>{socData.fatalities_employees || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Worker Fatalities</TableCell>
-                  <TableCell>{socData.fatalities_workers || 0}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-md font-semibold mb-3">Training</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">EHS Training</TableCell>
-                  <TableCell>{socData.ehs_training || 0} hours</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">GMP Training</TableCell>
-                  <TableCell>{socData.gmp_training || 0} hours</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Other Training</TableCell>
-                  <TableCell>{socData.other_training || 0} hours</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-          
-          <div>
-            <h3 className="text-md font-semibold mb-3">Benefits</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">PF Coverage</TableCell>
-                  <TableCell>{socData.pf_coverage || 0}%</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">ESI Coverage</TableCell>
-                  <TableCell>{socData.esi_coverage || 0}%</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Health Insurance</TableCell>
-                  <TableCell>{socData.health_insurance || 0}%</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Parental Benefits</TableCell>
-                  <TableCell>{socData.parental_benefits || 0}%</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderGovernanceData = () => {
-    const govData = submissionDetails?.governanceData;
-    if (!govData) return <p>No governance data available</p>;
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-md font-semibold mb-3">Board Composition</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Total Board Members</TableCell>
-                  <TableCell>{govData.board_members || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Women Percentage</TableCell>
-                  <TableCell>{govData.women_percentage || 0}%</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Under 30 years</TableCell>
-                  <TableCell>{govData.board_under30 || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">30-50 years</TableCell>
-                  <TableCell>{govData.board_30to50 || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Over 50 years</TableCell>
-                  <TableCell>{govData.board_above50 || 0}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-          
-          <div>
-            <h3 className="text-md font-semibold mb-3">Incidents & Compliance</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Legal Fines</TableCell>
-                  <TableCell>{govData.legal_fines || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Corruption Incidents</TableCell>
-                  <TableCell>{govData.corruption_incidents || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Cybersecurity Incidents</TableCell>
-                  <TableCell>{govData.cybersecurity_incidents || 0}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-md font-semibold mb-3">Board Experience</h3>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Under 5 years</TableCell>
-                  <TableCell>{govData.exp_under5 || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">5-10 years</TableCell>
-                  <TableCell>{govData.exp_5to10 || 0}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Over 10 years</TableCell>
-                  <TableCell>{govData.exp_above10 || 0}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </div>
-    );
+  // Helper to safely get field value
+  const getFieldValue = (submission: ESGSubmission, field: string): any => {
+    if (!hasFieldData(submission, field)) return null;
+    return (submission.data as Record<string, any>)[field];
   };
 
   return (
-    <div className="container max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Approval Queue</h1>
-          <p className="text-gray-500">Review and approve ESG data submissions</p>
-        </div>
-        <Button 
-          variant="outline"
-          size="sm"
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1"
-        >
-          <ChevronLeft size={16} />
-          Back
-        </Button>
+    <div className="container mx-auto py-6">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold mb-2">Approval Queue</h1>
+        <p className="text-gray-600">Review and approve ESG data submissions</p>
       </div>
 
-      <GlassCard className="p-6">
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-grow">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input
-              placeholder="Search by site or submitter..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X size={16} />
-              </button>
-            )}
-          </div>
-          
-          <div className="relative">
-            <Button
-              variant="outline"
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="w-full md:w-auto flex items-center gap-2"
-            >
-              <Filter size={16} />
-              Filter
-              {isFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </Button>
-            
-            {isFilterOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white z-10 border"
-              >
-                <div className="p-2">
-                  <button
-                    onClick={() => {
-                      setFilterStatus("all");
-                      setIsFilterOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm rounded-md ${
-                      filterStatus === "all" ? "bg-esg-blue/10 text-esg-blue" : "hover:bg-gray-100"
-                    }`}
-                  >
-                    All Submissions
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFilterStatus("pending");
-                      setIsFilterOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm rounded-md ${
-                      filterStatus === "pending" ? "bg-esg-blue/10 text-esg-blue" : "hover:bg-gray-100"
-                    }`}
-                  >
-                    Pending Review
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFilterStatus("approved");
-                      setIsFilterOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm rounded-md ${
-                      filterStatus === "approved" ? "bg-esg-blue/10 text-esg-blue" : "hover:bg-gray-100"
-                    }`}
-                  >
-                    Approved
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFilterStatus("rejected");
-                      setIsFilterOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm rounded-md ${
-                      filterStatus === "rejected" ? "bg-esg-blue/10 text-esg-blue" : "hover:bg-gray-100"
-                    }`}
-                  >
-                    Rejected
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFilterStatus("draft");
-                      setIsFilterOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm rounded-md ${
-                      filterStatus === "draft" ? "bg-esg-blue/10 text-esg-blue" : "hover:bg-gray-100"
-                    }`}
-                  >
-                    Drafts
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </div>
-        </div>
-
-        {isLoadingSubmissions ? (
-          <div className="py-20 flex flex-col items-center justify-center text-gray-500">
-            <Loader2 size={36} className="animate-spin mb-4" />
-            <p>Loading submissions...</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
+      <Tabs defaultValue="pending">
+        <TabsList className="mb-6">
+          <TabsTrigger value="pending">Pending Approval</TabsTrigger>
+          <TabsTrigger value="approved">Approved</TabsTrigger>
+          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="pending">
+          <div className="bg-white rounded-lg shadow overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Status</TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => requestSort("site.name")}
-                  >
-                    <div className="flex items-center gap-1">
-                      Site
-                      {sortConfig.key === "site.name" && (
-                        sortConfig.direction === "asc" ? <ChevronUp size={16} /> : <ChevronDown size={16} />
-                      )}
-                    </div>
-                  </TableHead>
+                  <TableHead>Submission ID</TableHead>
+                  <TableHead>Site</TableHead>
+                  <TableHead>Period</TableHead>
                   <TableHead>Submitted By</TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => requestSort("updated_at")}
-                  >
-                    <div className="flex items-center gap-1">
-                      Date
-                      {sortConfig.key === "updated_at" && (
-                        sortConfig.direction === "asc" ? <ChevronUp size={16} /> : <ChevronDown size={16} />
-                      )}
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Submitted On</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedData.length > 0 ? (
-                  sortedData.map((submission: Submission) => (
-                    <TableRow key={submission.id}>
-                      <TableCell>
-                        <StatusBadge status={submission.status} />
-                      </TableCell>
-                      <TableCell>{submission.site.name}</TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{submission.submitted_by}</p>
-                          <p className="text-sm text-gray-500">Reporter</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Clock size={16} className="text-gray-400" />
-                          <span>{formatDate(submission.updated_at)}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1"
-                            onClick={() => handleOpenViewDialog(submission)}
-                          >
-                            <Eye size={14} />
-                            View
-                          </Button>
-                          
-                          {submission.status === "pending" && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex items-center gap-1 text-esg-red hover:text-esg-red border-esg-red/20 hover:border-esg-red/30 hover:bg-esg-red/10"
-                                onClick={() => handleOpenRejectDialog(submission)}
-                                disabled={statusMutation.isPending}
-                              >
-                                {statusMutation.isPending ? (
-                                  <Loader2 size={14} className="animate-spin" />
-                                ) : (
-                                  <ThumbsDown size={14} />
-                                )}
-                                Reject
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="flex items-center gap-1 bg-esg-green hover:bg-esg-green/90"
-                                onClick={() => handleApprove(submission)}
-                                disabled={statusMutation.isPending}
-                              >
-                                {statusMutation.isPending ? (
-                                  <Loader2 size={14} className="animate-spin" />
-                                ) : (
-                                  <ThumbsUp size={14} />
-                                )}
-                                Approve
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
+                {submissions.filter(sub => sub.status === 'pending').map(submission => (
+                  <TableRow key={submission.id}>
+                    <TableCell className="font-medium">{submission.id.slice(0, 8)}</TableCell>
+                    <TableCell>{submission.siteName}</TableCell>
+                    <TableCell>{submission.period}</TableCell>
+                    <TableCell>{submission.submittedBy}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={submission.status} />
+                    </TableCell>
+                    <TableCell>
+                      {new Date(submission.submittedAt).toLocaleDateString('en-US', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleView(submission.id)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="text-green-600"
+                          onClick={() => handleApprove(submission.id)}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="text-red-600"
+                          onClick={() => handleReject(submission.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {submissions.filter(sub => sub.status === 'pending').length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      No submissions found matching your criteria.
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      No pending submissions found
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
-        )}
-      </GlassCard>
-
-      <Dialog open={rejectionDialogOpen} onOpenChange={setRejectionDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Reject Submission</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this submission. This will be shared with the submitter.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <Textarea
-              placeholder="Enter rejection reason..."
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              className="min-h-[100px]"
-            />
+        </TabsContent>
+        
+        <TabsContent value="approved">
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Submission ID</TableHead>
+                  <TableHead>Site</TableHead>
+                  <TableHead>Period</TableHead>
+                  <TableHead>Submitted By</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Approved On</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {submissions.filter(sub => sub.status === 'approved').map(submission => (
+                  <TableRow key={submission.id}>
+                    <TableCell className="font-medium">{submission.id.slice(0, 8)}</TableCell>
+                    <TableCell>{submission.siteName}</TableCell>
+                    <TableCell>{submission.period}</TableCell>
+                    <TableCell>{submission.submittedBy}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={submission.status} />
+                    </TableCell>
+                    <TableCell>
+                      {submission.approvedAt && new Date(submission.approvedAt).toLocaleDateString('en-US', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleView(submission.id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {submissions.filter(sub => sub.status === 'approved').length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      No approved submissions found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
-          
-          <DialogFooter className="sm:justify-between">
-            <Button
-              variant="outline"
-              onClick={() => setRejectionDialogOpen(false)}
-              disabled={statusMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleReject}
-              disabled={!rejectionReason.trim() || statusMutation.isPending}
-            >
-              {statusMutation.isPending ? (
-                <Loader2 size={16} className="animate-spin mr-2" />
-              ) : null}
-              Confirm Rejection
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </TabsContent>
+        
+        <TabsContent value="rejected">
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Submission ID</TableHead>
+                  <TableHead>Site</TableHead>
+                  <TableHead>Period</TableHead>
+                  <TableHead>Submitted By</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Rejected On</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {submissions.filter(sub => sub.status === 'rejected').map(submission => (
+                  <TableRow key={submission.id}>
+                    <TableCell className="font-medium">{submission.id.slice(0, 8)}</TableCell>
+                    <TableCell>{submission.siteName}</TableCell>
+                    <TableCell>{submission.period}</TableCell>
+                    <TableCell>{submission.submittedBy}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={submission.status} />
+                    </TableCell>
+                    <TableCell>
+                      {submission.rejectedAt && new Date(submission.rejectedAt).toLocaleDateString('en-US', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleView(submission.id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {submissions.filter(sub => sub.status === 'rejected').length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      No rejected submissions found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
 
+      {/* View Submission Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Submission Details</DialogTitle>
-            <DialogDescription>
-              {selectedSubmission && (
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
-                  <div>
-                    <p className="text-sm"><span className="font-medium">Site:</span> {selectedSubmission.site.name}</p>
-                    <p className="text-sm"><span className="font-medium">Submitted by:</span> {selectedSubmission.submitted_by}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm"><span className="font-medium">Status:</span> <StatusBadge status={selectedSubmission.status} /></p>
-                    <p className="text-sm"><span className="font-medium">Date:</span> {formatDate(selectedSubmission.updated_at)}</p>
-                  </div>
-                </div>
-              )}
-            </DialogDescription>
           </DialogHeader>
           
-          {isLoadingDetails ? (
-            <div className="py-10 flex justify-center items-center">
-              <Loader2 size={24} className="animate-spin" />
-            </div>
-          ) : (
-            <div className="py-4">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="environmental">Environmental</TabsTrigger>
-                  <TabsTrigger value="social">Social</TabsTrigger>
-                  <TabsTrigger value="governance">Governance</TabsTrigger>
-                </TabsList>
+          {selectedSubmission && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm text-gray-500">Submission ID</p>
+                  <p className="font-medium">{selectedSubmission.id.slice(0, 8)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Site</p>
+                  <p className="font-medium">{selectedSubmission.siteName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Period</p>
+                  <p className="font-medium">{selectedSubmission.period}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <StatusBadge status={selectedSubmission.status} />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Submitted By</p>
+                  <p className="font-medium">{selectedSubmission.submittedBy}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Submitted On</p>
+                  <p className="font-medium">
+                    {new Date(selectedSubmission.submittedAt).toLocaleDateString('en-US', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Environmental Data */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Environmental Data</h3>
                 
-                <TabsContent value="environmental">
-                  {renderEnvironmentalData()}
-                </TabsContent>
+                {/* Energy Consumption */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('energy')}
+                  >
+                    <h4 className="font-medium">Energy Consumption</h4>
+                    {expandedSections.energy ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.energy && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Total Electricity (kWh)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'total_electricity') ? getFieldValue(selectedSubmission, 'total_electricity') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Renewable Energy - PPA (kWh)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'renewable_ppa') ? getFieldValue(selectedSubmission, 'renewable_ppa') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Renewable Energy - Rooftop (kWh)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'renewable_rooftop') ? getFieldValue(selectedSubmission, 'renewable_rooftop') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Coal Consumption (tonnes)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'coal_consumption') ? getFieldValue(selectedSubmission, 'coal_consumption') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">HSD Consumption (liters)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'hsd_consumption') ? getFieldValue(selectedSubmission, 'hsd_consumption') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 
-                <TabsContent value="social">
-                  {renderSocialData()}
-                </TabsContent>
+                {/* Emissions */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('emissions')}
+                  >
+                    <h4 className="font-medium">Emissions</h4>
+                    {expandedSections.emissions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.emissions && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">NOx (mg/Nm³)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'nox') ? getFieldValue(selectedSubmission, 'nox') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">SOx (mg/Nm³)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'sox') ? getFieldValue(selectedSubmission, 'sox') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Particulate Matter (mg/Nm³)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'pm') ? getFieldValue(selectedSubmission, 'pm') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Total GHG Emissions (tCO₂e)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'total_emissions') ? getFieldValue(selectedSubmission, 'total_emissions') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 
-                <TabsContent value="governance">
-                  {renderGovernanceData()}
-                </TabsContent>
-              </Tabs>
+                {/* Water Management */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('water')}
+                  >
+                    <h4 className="font-medium">Water Management</h4>
+                    {expandedSections.water ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.water && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Total Water Withdrawal (m³)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'water_withdrawal') ? getFieldValue(selectedSubmission, 'water_withdrawal') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Third-party Water (m³)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'third_party_water') ? getFieldValue(selectedSubmission, 'third_party_water') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Rainwater Harvested (m³)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'rainwater') ? getFieldValue(selectedSubmission, 'rainwater') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Water Discharged (m³)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'water_discharged') ? getFieldValue(selectedSubmission, 'water_discharged') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Waste Management */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('waste')}
+                  >
+                    <h4 className="font-medium">Waste Management</h4>
+                    {expandedSections.waste ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.waste && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Hazardous Waste (tonnes)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'total_hazardous') ? getFieldValue(selectedSubmission, 'total_hazardous') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Non-hazardous Waste (tonnes)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'non_hazardous') ? getFieldValue(selectedSubmission, 'non_hazardous') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Plastic Waste (tonnes)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'plastic_waste') ? getFieldValue(selectedSubmission, 'plastic_waste') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">E-waste (tonnes)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'e_waste') ? getFieldValue(selectedSubmission, 'e_waste') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Social Data */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Social Data</h3>
+                
+                {/* Workforce Diversity */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('workforce')}
+                  >
+                    <h4 className="font-medium">Workforce Diversity</h4>
+                    {expandedSections.workforce ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.workforce && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Total Employees</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'total_employees') ? getFieldValue(selectedSubmission, 'total_employees') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Male Employees (Permanent)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'male_employees') ? getFieldValue(selectedSubmission, 'male_employees') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Female Employees (Permanent)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'female_employees') ? getFieldValue(selectedSubmission, 'female_employees') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Male Employees (Contract)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'contract_male') ? getFieldValue(selectedSubmission, 'contract_male') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Female Employees (Contract)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'contract_female') ? getFieldValue(selectedSubmission, 'contract_female') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Health & Safety */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('safety')}
+                  >
+                    <h4 className="font-medium">Health & Safety</h4>
+                    {expandedSections.safety ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.safety && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Lost Time Injuries (Employees)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'injuries_employees') ? getFieldValue(selectedSubmission, 'injuries_employees') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Lost Time Injuries (Contract Workers)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'injuries_workers') ? getFieldValue(selectedSubmission, 'injuries_workers') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Fatalities (Employees)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'fatalities_employees') ? getFieldValue(selectedSubmission, 'fatalities_employees') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Fatalities (Contract Workers)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'fatalities_workers') ? getFieldValue(selectedSubmission, 'fatalities_workers') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Training & Development */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('training')}
+                  >
+                    <h4 className="font-medium">Training & Development</h4>
+                    {expandedSections.training ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.training && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">EHS Training (hours)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'ehs_training') ? getFieldValue(selectedSubmission, 'ehs_training') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Professional Training (hours)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'gmp_training') ? getFieldValue(selectedSubmission, 'gmp_training') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Other Training (hours)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'other_training') ? getFieldValue(selectedSubmission, 'other_training') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Employee Benefits */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('benefits')}
+                  >
+                    <h4 className="font-medium">Employee Benefits</h4>
+                    {expandedSections.benefits ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.benefits && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">PF Coverage (%)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'pf_coverage') ? getFieldValue(selectedSubmission, 'pf_coverage') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">ESI Coverage (%)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'esi_coverage') ? getFieldValue(selectedSubmission, 'esi_coverage') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Health Insurance (%)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'health_insurance') ? getFieldValue(selectedSubmission, 'health_insurance') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Parental Benefits (%)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'parental_benefits') ? getFieldValue(selectedSubmission, 'parental_benefits') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Governance Data */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Governance Data</h3>
+                
+                {/* Board Composition */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('governance')}
+                  >
+                    <h4 className="font-medium">Board Composition</h4>
+                    {expandedSections.governance ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.governance && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Total Board Members</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'board_members') ? getFieldValue(selectedSubmission, 'board_members') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Women on Board (%)</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'women_percentage') ? getFieldValue(selectedSubmission, 'women_percentage') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Board Members Under 30</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'board_under30') ? getFieldValue(selectedSubmission, 'board_under30') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Board Members 30-50</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'board_30to50') ? getFieldValue(selectedSubmission, 'board_30to50') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Board Members Above 50</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'board_above50') ? getFieldValue(selectedSubmission, 'board_above50') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Compliance & Ethics */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('compliance')}
+                  >
+                    <h4 className="font-medium">Compliance & Ethics</h4>
+                    {expandedSections.compliance ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.compliance && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Legal/Regulatory Fines</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'legal_fines') ? getFieldValue(selectedSubmission, 'legal_fines') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Corruption Incidents</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'corruption_incidents') ? getFieldValue(selectedSubmission, 'corruption_incidents') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Cybersecurity Incidents</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'cybersecurity_incidents') ? getFieldValue(selectedSubmission, 'cybersecurity_incidents') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Board Experience */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div 
+                    className="flex justify-between items-center p-3 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleSection('experience')}
+                  >
+                    <h4 className="font-medium">Board Experience</h4>
+                    {expandedSections.experience ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  
+                  {expandedSections.experience && (
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Under 5 Years Experience</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'exp_under5') ? getFieldValue(selectedSubmission, 'exp_under5') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">5-10 Years Experience</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'exp_5to10') ? getFieldValue(selectedSubmission, 'exp_5to10') : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Above 10 Years Experience</p>
+                          <p className="font-medium">
+                            {hasFieldData(selectedSubmission, 'exp_above10') ? getFieldValue(selectedSubmission, 'exp_above10') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setViewDialogOpen(false)}
+                >
+                  Close
+                </Button>
+                {selectedSubmission.status === 'pending' && (
+                  <>
+                    <Button 
+                      variant="destructive"
+                      onClick={() => {
+                        handleReject(selectedSubmission.id);
+                        setViewDialogOpen(false);
+                      }}
+                    >
+                      Reject
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        handleApprove(selectedSubmission.id);
+                        setViewDialogOpen(false);
+                      }}
+                    >
+                      Approve
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           )}
-          
-          <DialogFooter className="sm:justify-between">
-            <Button
-              variant="outline"
-              onClick={() => setViewDialogOpen(false)}
-            >
-              Close
-            </Button>
-            
-            {selectedSubmission?.status === "pending" && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="text-esg-red hover:text-esg-red border-esg-red/20 hover:border-esg-red/30 hover:bg-esg-red/10"
-                  onClick={() => {
-                    setViewDialogOpen(false);
-                    handleOpenRejectDialog(selectedSubmission);
-                  }}
-                >
-                  <ThumbsDown size={14} className="mr-2" />
-                  Reject
-                </Button>
-                <Button
-                  className="bg-esg-green hover:bg-esg-green/90"
-                  onClick={() => {
-                    setViewDialogOpen(false);
-                    handleApprove(selectedSubmission);
-                  }}
-                >
-                  <ThumbsUp size={14} className="mr-2" />
-                  Approve
-                </Button>
-              </div>
-            )}
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -827,4 +855,3 @@ const ApprovalQueue = () => {
 };
 
 export default ApprovalQueue;
-
