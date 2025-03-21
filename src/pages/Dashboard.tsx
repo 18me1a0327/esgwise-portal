@@ -5,7 +5,9 @@ import {
   Leaf, 
   Users, 
   Briefcase, 
-  Loader2
+  Loader2,
+  LockIcon,
+  GavelIcon
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import GlassCard from "@/components/ui/GlassCard";
@@ -21,13 +23,11 @@ const Dashboard = () => {
   const [selectedSite, setSelectedSite] = useState<string>("all");
   const [timeframe, setTimeframe] = useState<string>("quarter");
 
-  // Fetch dashboard data
   const { data: dashboardData, isLoading: isLoadingDashboard } = useQuery({
     queryKey: ['dashboardData', selectedSite, timeframe],
     queryFn: fetchDashboardData
   });
 
-  // Fetch sites for the filter
   const { data: sites } = useQuery({
     queryKey: ['sites'],
     queryFn: fetchSites
@@ -59,7 +59,6 @@ const Dashboard = () => {
     );
   }
 
-  // Use real data or fallback to empty arrays
   const energyData = dashboardData?.chartData?.energyData || [];
   const emissionsData = dashboardData?.chartData?.emissionsData || [];
   const waterData = dashboardData?.chartData?.waterData || [];
@@ -72,7 +71,6 @@ const Dashboard = () => {
     { name: 'Waste oil', value: Number(item.waste_oil) || 0 },
   ]).flat() || [];
 
-  // Social data
   const employeeData = dashboardData?.socialData?.map(item => [
     { name: 'Male Employees', value: Number(item.male_employees) || 0 },
     { name: 'Female Employees', value: Number(item.female_employees) || 0 },
@@ -420,7 +418,7 @@ const Dashboard = () => {
               <div className="space-y-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center mb-2">
-                    <Lock size={18} className="text-esg-blue mr-2" />
+                    <LockIcon size={18} className="text-esg-blue mr-2" />
                     <p className="text-sm font-medium">Cybersecurity Incidents</p>
                   </div>
                   <p className="text-2xl font-semibold">1</p>
@@ -429,7 +427,7 @@ const Dashboard = () => {
                 
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center mb-2">
-                    <Gavel size={18} className="text-esg-blue mr-2" />
+                    <GavelIcon size={18} className="text-esg-blue mr-2" />
                     <p className="text-sm font-medium">Corruption Incidents</p>
                   </div>
                   <p className="text-2xl font-semibold text-esg-green">0</p>

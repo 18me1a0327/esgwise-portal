@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export const fetchDashboardData = async () => {
@@ -128,14 +127,14 @@ export const fetchDashboardData = async () => {
     Discharged: Number(item.water_discharged) || 0
   }));
   
-  const wasteData = environmentalData?.map(item => ({
-    name: 'Hazardous', value: Number(item.total_hazardous) || 0,
-    name: 'Non-hazardous', value: Number(item.non_hazardous) || 0,
-    name: 'Plastic', value: Number(item.plastic_waste) || 0,
-    name: 'E-waste', value: Number(item.e_waste) || 0,
-    name: 'Bio-medical', value: Number(item.bio_medical) || 0,
-    name: 'Waste oil', value: Number(item.waste_oil) || 0,
-  }));
+  const wasteData = environmentalData?.map(item => [
+    { name: 'Hazardous', value: Number(item.total_hazardous) || 0 },
+    { name: 'Non-hazardous', value: Number(item.non_hazardous) || 0 },
+    { name: 'Plastic', value: Number(item.plastic_waste) || 0 },
+    { name: 'E-waste', value: Number(item.e_waste) || 0 },
+    { name: 'Bio-medical', value: Number(item.bio_medical) || 0 },
+    { name: 'Waste oil', value: Number(item.waste_oil) || 0 }
+  ]).flat() || [];
 
   // Fetch statistics by site
   const siteStats = submissions?.map(submission => {
