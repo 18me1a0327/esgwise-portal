@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ApprovalStatus } from "@/types/esg";
 
@@ -300,6 +301,11 @@ export const rejectSubmission = async (submissionId: string, reason: string = 'D
 export const getSubmissionById = async (submissionId: string) => {
   const { submission, environmentalData, socialData, governanceData } = await fetchSubmissionDetails(submissionId);
   
+  // Define types for the data objects to help TypeScript
+  type EnvData = typeof environmentalData;
+  type SocialData = typeof socialData;
+  type GovData = typeof governanceData;
+  
   return {
     id: submission.id,
     siteName: submission.site ? submission.site.name : 'Unknown Site',
@@ -313,51 +319,54 @@ export const getSubmissionById = async (submissionId: string) => {
     reviewComment: submission.review_comment,
     siteId: submission.site_id,
     data: {
-      total_electricity: environmentalData.total_electricity,
-      renewable_ppa: environmentalData.renewable_ppa,
-      renewable_rooftop: environmentalData.renewable_rooftop,
-      coal_consumption: environmentalData.coal_consumption,
-      hsd_consumption: environmentalData.hsd_consumption,
-      nox: environmentalData.nox,
-      sox: environmentalData.sox,
-      pm: environmentalData.pm,
-      water_withdrawal: environmentalData.water_withdrawal,
-      third_party_water: environmentalData.third_party_water,
-      rainwater: environmentalData.rainwater,
-      water_discharged: environmentalData.water_discharged,
-      total_hazardous: environmentalData.total_hazardous,
-      non_hazardous: environmentalData.non_hazardous,
-      plastic_waste: environmentalData.plastic_waste,
-      e_waste: environmentalData.e_waste,
+      // Environmental data with null/undefined checks
+      total_electricity: environmentalData && 'total_electricity' in environmentalData ? environmentalData.total_electricity : null,
+      renewable_ppa: environmentalData && 'renewable_ppa' in environmentalData ? environmentalData.renewable_ppa : null,
+      renewable_rooftop: environmentalData && 'renewable_rooftop' in environmentalData ? environmentalData.renewable_rooftop : null,
+      coal_consumption: environmentalData && 'coal_consumption' in environmentalData ? environmentalData.coal_consumption : null,
+      hsd_consumption: environmentalData && 'hsd_consumption' in environmentalData ? environmentalData.hsd_consumption : null,
+      nox: environmentalData && 'nox' in environmentalData ? environmentalData.nox : null,
+      sox: environmentalData && 'sox' in environmentalData ? environmentalData.sox : null,
+      pm: environmentalData && 'pm' in environmentalData ? environmentalData.pm : null,
+      water_withdrawal: environmentalData && 'water_withdrawal' in environmentalData ? environmentalData.water_withdrawal : null,
+      third_party_water: environmentalData && 'third_party_water' in environmentalData ? environmentalData.third_party_water : null,
+      rainwater: environmentalData && 'rainwater' in environmentalData ? environmentalData.rainwater : null,
+      water_discharged: environmentalData && 'water_discharged' in environmentalData ? environmentalData.water_discharged : null,
+      total_hazardous: environmentalData && 'total_hazardous' in environmentalData ? environmentalData.total_hazardous : null,
+      non_hazardous: environmentalData && 'non_hazardous' in environmentalData ? environmentalData.non_hazardous : null,
+      plastic_waste: environmentalData && 'plastic_waste' in environmentalData ? environmentalData.plastic_waste : null,
+      e_waste: environmentalData && 'e_waste' in environmentalData ? environmentalData.e_waste : null,
       
-      total_employees: socialData.total_employees,
-      male_employees: socialData.male_employees,
-      female_employees: socialData.female_employees,
-      contract_male: socialData.contract_male,
-      contract_female: socialData.contract_female,
-      injuries_employees: socialData.injuries_employees,
-      injuries_workers: socialData.injuries_workers,
-      fatalities_employees: socialData.fatalities_employees,
-      fatalities_workers: socialData.fatalities_workers,
-      ehs_training: socialData.ehs_training,
-      gmp_training: socialData.gmp_training,
-      other_training: socialData.other_training,
-      pf_coverage: socialData.pf_coverage,
-      esi_coverage: socialData.esi_coverage,
-      health_insurance: socialData.health_insurance,
-      parental_benefits: socialData.parental_benefits,
+      // Social data with null/undefined checks
+      total_employees: socialData && 'total_employees' in socialData ? socialData.total_employees : null,
+      male_employees: socialData && 'male_employees' in socialData ? socialData.male_employees : null,
+      female_employees: socialData && 'female_employees' in socialData ? socialData.female_employees : null,
+      contract_male: socialData && 'contract_male' in socialData ? socialData.contract_male : null,
+      contract_female: socialData && 'contract_female' in socialData ? socialData.contract_female : null,
+      injuries_employees: socialData && 'injuries_employees' in socialData ? socialData.injuries_employees : null,
+      injuries_workers: socialData && 'injuries_workers' in socialData ? socialData.injuries_workers : null,
+      fatalities_employees: socialData && 'fatalities_employees' in socialData ? socialData.fatalities_employees : null,
+      fatalities_workers: socialData && 'fatalities_workers' in socialData ? socialData.fatalities_workers : null,
+      ehs_training: socialData && 'ehs_training' in socialData ? socialData.ehs_training : null,
+      gmp_training: socialData && 'gmp_training' in socialData ? socialData.gmp_training : null,
+      other_training: socialData && 'other_training' in socialData ? socialData.other_training : null,
+      pf_coverage: socialData && 'pf_coverage' in socialData ? socialData.pf_coverage : null,
+      esi_coverage: socialData && 'esi_coverage' in socialData ? socialData.esi_coverage : null,
+      health_insurance: socialData && 'health_insurance' in socialData ? socialData.health_insurance : null,
+      parental_benefits: socialData && 'parental_benefits' in socialData ? socialData.parental_benefits : null,
       
-      board_members: governanceData.board_members,
-      women_percentage: governanceData.women_percentage,
-      board_under30: governanceData.board_under30,
-      board_30to50: governanceData.board_30to50,
-      board_above50: governanceData.board_above50,
-      exp_under5: governanceData.exp_under5,
-      exp_5to10: governanceData.exp_5to10,
-      exp_above10: governanceData.exp_above10,
-      legal_fines: governanceData.legal_fines,
-      corruption_incidents: governanceData.corruption_incidents,
-      cybersecurity_incidents: governanceData.cybersecurity_incidents
+      // Governance data with null/undefined checks
+      board_members: governanceData && 'board_members' in governanceData ? governanceData.board_members : null,
+      women_percentage: governanceData && 'women_percentage' in governanceData ? governanceData.women_percentage : null,
+      board_under30: governanceData && 'board_under30' in governanceData ? governanceData.board_under30 : null,
+      board_30to50: governanceData && 'board_30to50' in governanceData ? governanceData.board_30to50 : null,
+      board_above50: governanceData && 'board_above50' in governanceData ? governanceData.board_above50 : null,
+      exp_under5: governanceData && 'exp_under5' in governanceData ? governanceData.exp_under5 : null,
+      exp_5to10: governanceData && 'exp_5to10' in governanceData ? governanceData.exp_5to10 : null,
+      exp_above10: governanceData && 'exp_above10' in governanceData ? governanceData.exp_above10 : null,
+      legal_fines: governanceData && 'legal_fines' in governanceData ? governanceData.legal_fines : null,
+      corruption_incidents: governanceData && 'corruption_incidents' in governanceData ? governanceData.corruption_incidents : null,
+      cybersecurity_incidents: governanceData && 'cybersecurity_incidents' in governanceData ? governanceData.cybersecurity_incidents : null
     }
   };
 };
