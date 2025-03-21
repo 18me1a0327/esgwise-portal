@@ -132,7 +132,7 @@ const ApprovalQueue = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {submissions.filter(sub => sub.status === 'pending').map(submission => (
+                {(submissions as ESGSubmission[]).filter(sub => sub.status === 'pending').map(submission => (
                   <TableRow key={submission.id}>
                     <TableCell className="font-medium">{submission.id.slice(0, 8)}</TableCell>
                     <TableCell>{submission.siteName}</TableCell>
@@ -177,7 +177,7 @@ const ApprovalQueue = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {submissions.filter(sub => sub.status === 'pending').length === 0 && (
+                {(submissions as ESGSubmission[]).filter(sub => sub.status === 'pending').length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       No pending submissions found
@@ -204,7 +204,7 @@ const ApprovalQueue = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {submissions.filter(sub => sub.status === 'approved').map(submission => (
+                {(submissions as ESGSubmission[]).filter(sub => sub.status === 'approved').map(submission => (
                   <TableRow key={submission.id}>
                     <TableCell className="font-medium">{submission.id.slice(0, 8)}</TableCell>
                     <TableCell>{submission.siteName}</TableCell>
@@ -231,7 +231,7 @@ const ApprovalQueue = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {submissions.filter(sub => sub.status === 'approved').length === 0 && (
+                {(submissions as ESGSubmission[]).filter(sub => sub.status === 'approved').length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       No approved submissions found
@@ -258,7 +258,7 @@ const ApprovalQueue = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {submissions.filter(sub => sub.status === 'rejected').map(submission => (
+                {(submissions as ESGSubmission[]).filter(sub => sub.status === 'rejected').map(submission => (
                   <TableRow key={submission.id}>
                     <TableCell className="font-medium">{submission.id.slice(0, 8)}</TableCell>
                     <TableCell>{submission.siteName}</TableCell>
@@ -285,7 +285,7 @@ const ApprovalQueue = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {submissions.filter(sub => sub.status === 'rejected').length === 0 && (
+                {(submissions as ESGSubmission[]).filter(sub => sub.status === 'rejected').length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       No rejected submissions found

@@ -1,6 +1,22 @@
 
 export type ApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected';
 
+// Add the ESGSubmission type needed by the ApprovalQueue component
+export interface ESGSubmission {
+  id: string;
+  siteName: string;
+  period: string;
+  submittedBy: string;
+  status: ApprovalStatus;
+  submittedAt: string;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  reviewer?: string | null;
+  reviewComment?: string | null;
+  siteId: string;
+  data?: Record<string, any> | null;
+}
+
 export interface SiteInfo {
   id: string;
   name: string;

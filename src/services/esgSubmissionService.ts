@@ -249,6 +249,119 @@ export const fetchSubmissionDetails = async (submissionId: string) => {
   };
 };
 
+export const getSubmissionsForApproval = async () => {
+  const { data, error } = await supabase
+    .from('esg_submissions')
+    .select(`
+      *,
+      site:sites(*)
+    `)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching submissions for approval:', error);
+    throw new Error('Failed to fetch submissions for approval');
+  }
+
+  return data.map(submission => ({
+    id: submission.id,
+    siteName: submission.site ? submission.site.name : 'Unknown Site',
+    period: `${new Date(submission.period_start).toLocaleDateString()} - ${new Date(submission.period_end).toLocaleDateString()}`,
+    submittedBy: submission.submitted_by,
+    status: submission.status as ApprovalStatus,
+    submittedAt: submission.submitted_at,
+    approvedAt: submission.status === 'approved' ? submission.reviewed_at : null,
+    rejectedAt: submission.status === 'rejected' ? submission.reviewed_at : null,
+    reviewer: submission.reviewer,
+    reviewComment: submission.review_comment,
+    siteId: submission.site_id,
+    data: null
+  }));
+};
+
+export const approveSubmission = async (submissionId: string) => {
+  return updateSubmissionStatus(
+    submissionId, 
+    'approved', 
+    'Admin User',
+    'Approved after review'
+  );
+};
+
+export const rejectSubmission = async (submissionId: string, reason: string = 'Did not meet requirements') => {
+  return updateSubmissionStatus(
+    submissionId, 
+    'rejected', 
+    'Admin User',
+    reason
+  );
+};
+
+export const getSubmissionById = async (submissionId: string) => {
+  const { submission, environmentalData, socialData, governanceData } = await fetchSubmissionDetails(submissionId);
+  
+  return {
+    id: submission.id,
+    siteName: submission.site ? submission.site.name : 'Unknown Site',
+    period: `${new Date(submission.period_start).toLocaleDateString()} - ${new Date(submission.period_end).toLocaleDateString()}`,
+    submittedBy: submission.submitted_by,
+    status: submission.status as ApprovalStatus,
+    submittedAt: submission.submitted_at,
+    approvedAt: submission.status === 'approved' ? submission.reviewed_at : null,
+    rejectedAt: submission.status === 'rejected' ? submission.reviewed_at : null,
+    reviewer: submission.reviewer,
+    reviewComment: submission.review_comment,
+    siteId: submission.site_id,
+    data: {
+      total_electricity: environmentalData.total_electricity,
+      renewable_ppa: environmentalData.renewable_ppa,
+      renewable_rooftop: environmentalData.renewable_rooftop,
+      coal_consumption: environmentalData.coal_consumption,
+      hsd_consumption: environmentalData.hsd_consumption,
+      nox: environmentalData.nox,
+      sox: environmentalData.sox,
+      pm: environmentalData.pm,
+      water_withdrawal: environmentalData.water_withdrawal,
+      third_party_water: environmentalData.third_party_water,
+      rainwater: environmentalData.rainwater,
+      water_discharged: environmentalData.water_discharged,
+      total_hazardous: environmentalData.total_hazardous,
+      non_hazardous: environmentalData.non_hazardous,
+      plastic_waste: environmentalData.plastic_waste,
+      e_waste: environmentalData.e_waste,
+      
+      total_employees: socialData.total_employees,
+      male_employees: socialData.male_employees,
+      female_employees: socialData.female_employees,
+      contract_male: socialData.contract_male,
+      contract_female: socialData.contract_female,
+      injuries_employees: socialData.injuries_employees,
+      injuries_workers: socialData.injuries_workers,
+      fatalities_employees: socialData.fatalities_employees,
+      fatalities_workers: socialData.fatalities_workers,
+      ehs_training: socialData.ehs_training,
+      gmp_training: socialData.gmp_training,
+      other_training: socialData.other_training,
+      pf_coverage: socialData.pf_coverage,
+      esi_coverage: socialData.esi_coverage,
+      health_insurance: socialData.health_insurance,
+      parental_benefits: socialData.parental_benefits,
+      
+      board_members: governanceData.board_members,
+      women_percentage: governanceData.women_percentage,
+      board_under30: governanceData.board_under30,
+      board_30to50: governanceData.board_30to50,
+      board_above50: governanceData.board_above50,
+      exp_under5: governanceData.exp_under5,
+      exp_5to10: governanceData.exp_5to10,
+      exp_above10: governanceData.exp_above10,
+      legal_fines: governanceData.legal_fines,
+      corruption_incidents: governanceData.corruption_incidents,
+      cybersecurity_incidents: governanceData.cybersecurity_incidents
+    }
+  };
+};
+
 export type User = {
   id: string;
   username: string;
