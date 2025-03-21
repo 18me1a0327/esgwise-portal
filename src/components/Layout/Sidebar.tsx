@@ -1,127 +1,218 @@
 
-import { Link, useLocation } from "react-router-dom";
+import React, { useState } from "react";
+import { NavLink } from "react-router-dom";
+import { 
+  BarChart3Icon, 
+  ClipboardCheckIcon, 
+  HomeIcon,
+  BuildingIcon,
+  LogOutIcon,
+  CheckSquareIcon,
+  Settings2Icon,
+  HelpCircleIcon,
+  MenuIcon,
+  XIcon,
+  Users,
+  Shield,
+  Database
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMobileContext } from "@/hooks/use-mobile";
-import { BarChart, FileText, Users, MapPin, Settings, BarChart2, ClipboardList, FileSpreadsheet } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 const Sidebar = () => {
-  const location = useLocation();
-  const { isMobile, isSidebarOpen, toggleSidebar } = useMobileContext();
+  const [expanded, setExpanded] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
 
-  // If sidebar is closed on mobile, don't render
-  if (isMobile && !isSidebarOpen) {
-    return null;
-  }
+  const toggleSidebar = () => {
+    setExpanded(!expanded);
+  };
+
+  const toggleMobileSidebar = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const toggleAdmin = () => {
+    setAdminOpen(!adminOpen);
+  };
+
+  const NavItem = ({ 
+    to, 
+    icon, 
+    label,
+    onClick
+  }: { 
+    to: string; 
+    icon: React.ReactNode; 
+    label: string;
+    onClick?: () => void;
+  }) => {
+    return (
+      <NavLink
+        to={to}
+        className={({ isActive }) =>
+          cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 transition-all",
+            "text-esg-gray-600 hover:bg-esg-gray-100",
+            isActive && "bg-esg-blue/10 text-esg-blue font-medium",
+            !expanded && "justify-center"
+          )
+        }
+        onClick={() => {
+          setMobileOpen(false);
+          onClick && onClick();
+        }}
+      >
+        {icon}
+        {(expanded || mobileOpen) && <span>{label}</span>}
+      </NavLink>
+    );
+  };
+
+  const AdminButton = ({ onClick }: { onClick: () => void }) => {
+    return (
+      <button
+        onClick={onClick}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-lg px-3 py-2 transition-all",
+          "text-esg-gray-600 hover:bg-esg-gray-100",
+          adminOpen && "bg-esg-gray-100 font-medium",
+          !expanded && "justify-center"
+        )}
+      >
+        <Shield size={20} />
+        {(expanded || mobileOpen) && (
+          <div className="flex flex-1 items-center justify-between">
+            <span>Admin</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={cn("transition-transform", adminOpen ? "rotate-180" : "")}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
+        )}
+      </button>
+    );
+  };
 
   return (
-    <Card className={cn(
-      "h-full rounded-none border-r shadow-none",
-      isMobile ? "absolute z-40 w-64" : "w-64"
-    )}>
-      <CardContent className="flex h-full flex-col items-start gap-2 p-0">
-        <div className="flex h-14 w-full items-center border-b px-4">
-          <Link to="/" className="flex items-center gap-2">
-            <BarChart2 className="h-5 w-5" />
-            <span className="font-semibold">ESG Reporting</span>
-          </Link>
+    <>
+      {/* Mobile menu button */}
+      <button
+        onClick={toggleMobileSidebar}
+        className="fixed left-4 top-4 z-50 rounded-lg bg-white p-2 shadow-md lg:hidden"
+      >
+        {mobileOpen ? <XIcon size={20} /> : <MenuIcon size={20} />}
+      </button>
+
+      {/* Overlay for mobile */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/20 backdrop-blur-sm lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        ></div>
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-100 bg-white transition-all duration-300 ease-in-out lg:static lg:z-0",
+          !expanded && "lg:w-16",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
+        <div className={cn("flex h-16 items-center justify-between border-b border-gray-100 px-4", !expanded && "lg:justify-center")}>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-esg-blue font-bold text-white">
+              ESG
+            </div>
+            {(expanded || mobileOpen) && (
+              <span className="text-lg font-semibold">ESG Portal</span>
+            )}
+          </div>
+          <button
+            onClick={toggleSidebar}
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 focus:outline-none hidden lg:block"
+          >
+            {expanded ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            )}
+          </button>
         </div>
-        <div className="flex-1 space-y-1 p-4">
-          <Link 
-            to="/dashboard" 
-            onClick={isMobile ? toggleSidebar : undefined}
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "w-full justify-start",
-              location.pathname === '/dashboard' && "bg-muted"
-            )}
-          >
-            <BarChart className="mr-2 h-4 w-4" />
-            Dashboard
-          </Link>
-          <Link 
-            to="/form" 
-            onClick={isMobile ? toggleSidebar : undefined}
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "w-full justify-start",
-              location.pathname.includes('/form') && "bg-muted"
-            )}
-          >
-            <ClipboardList className="mr-2 h-4 w-4" />
-            Submit Data
-          </Link>
-          <Link 
-            to="/approvals" 
-            onClick={isMobile ? toggleSidebar : undefined}
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "w-full justify-start",
-              location.pathname === '/approvals' && "bg-muted"
-            )}
-          >
-            <FileText className="mr-2 h-4 w-4" />
-            Approvals
-          </Link>
-          <Link 
-            to="/reports" 
-            onClick={isMobile ? toggleSidebar : undefined}
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "w-full justify-start",
-              location.pathname === '/reports' && "bg-muted"
-            )}
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Reports
-          </Link>
-          
-          <div className="py-2">
-            <div className="text-xs font-semibold text-muted-foreground">
-              Administration
+
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+          <div className="space-y-1">
+            <NavItem to="/" icon={<HomeIcon size={20} />} label="Home" />
+            <NavItem to="/dashboard" icon={<BarChart3Icon size={20} />} label="Dashboard" />
+            <NavItem to="/form" icon={<ClipboardCheckIcon size={20} />} label="Data Collection" />
+            <NavItem to="/approvals" icon={<CheckSquareIcon size={20} />} label="Approval Queue" />
+            
+            {/* Admin Section */}
+            <div className="pt-3">
+              <AdminButton onClick={toggleAdmin} />
+              {adminOpen && (expanded || mobileOpen) && (
+                <div className="mt-1 space-y-1 pl-9">
+                  <NavItem to="/admin/users" icon={<Users size={16} />} label="User Management" />
+                  <NavItem to="/admin/sites" icon={<BuildingIcon size={16} />} label="Sites" />
+                  <NavItem to="/admin/emission-factors" icon={<Database size={16} />} label="Emission Factors" />
+                </div>
+              )}
             </div>
           </div>
-          
-          <Link 
-            to="/admin/sites" 
-            onClick={isMobile ? toggleSidebar : undefined}
+
+          <div className="mt-6 border-t border-gray-100 pt-6">
+            <NavItem to="/settings" icon={<Settings2Icon size={20} />} label="Settings" />
+            <NavItem to="/help" icon={<HelpCircleIcon size={20} />} label="Help & Support" />
+          </div>
+        </nav>
+
+        <div className="border-t border-gray-100 p-4">
+          <button
             className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "w-full justify-start",
-              location.pathname === '/admin/sites' && "bg-muted"
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-esg-gray-600 transition-all hover:bg-esg-gray-100",
+              !expanded && "lg:justify-center"
             )}
           >
-            <MapPin className="mr-2 h-4 w-4" />
-            Sites
-          </Link>
-          <Link 
-            to="/admin/emission-factors" 
-            onClick={isMobile ? toggleSidebar : undefined}
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "w-full justify-start",
-              location.pathname === '/admin/emission-factors' && "bg-muted"
-            )}
-          >
-            <Settings className="mr-2 h-4 w-4" />
-            Emission Factors
-          </Link>
-          <Link 
-            to="/admin/users" 
-            onClick={isMobile ? toggleSidebar : undefined}
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "w-full justify-start",
-              location.pathname === '/admin/users' && "bg-muted"
-            )}
-          >
-            <Users className="mr-2 h-4 w-4" />
-            Users
-          </Link>
+            <LogOutIcon size={20} />
+            {(expanded || mobileOpen) && <span>Log out</span>}
+          </button>
         </div>
-      </CardContent>
-    </Card>
+      </aside>
+    </>
   );
 };
 
