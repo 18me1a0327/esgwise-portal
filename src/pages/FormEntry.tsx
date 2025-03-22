@@ -1,892 +1,644 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  Form, 
-  FormControl, 
-  FormDescription, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from "@/components/ui/form";
-import { 
-  createSubmission, 
-  saveAsDraft, 
-  updateSubmissionStatus, 
-  fetchSubmissionDetails 
-} from "@/services/esgSubmissionService";
-import { fetchSites } from "@/services/siteService";
+  Leaf, 
+  Users, 
+  Briefcase, 
+  ChevronRight, 
+  ChevronDown, 
+  Save, 
+  Send, 
+  ArrowLeft,
+  PlusCircle,
+  Loader2,
+  AlertCircle
+} from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import GlassCard from "@/components/ui/GlassCard";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { z } from "zod";
+import { fetchSites } from "@/services/siteService";
+import { createSubmission, saveAsDraft, fetchSubmissionDetails } from "@/services/esgSubmissionService";
 
-// Define the schema for form validation
-const environmentalSchema = z.object({
-  total_electricity: z.number().optional(),
-  renewable_ppa: z.number().optional(),
-  renewable_rooftop: z.number().optional(),
-  coal_consumption: z.number().optional(),
-  hsd_consumption: z.number().optional(),
-  furnace_oil_consumption: z.number().optional(),
-  petrol_consumption: z.number().optional(),
-  nox: z.number().optional(),
-  sox: z.number().optional(),
-  pm: z.number().optional(),
-  water_withdrawal: z.number().optional(),
-  third_party_water: z.number().optional(),
-  rainwater: z.number().optional(),
-  total_waste: z.number().optional(),
-  total_hazardous: z.number().optional(),
-  non_hazardous: z.number().optional(),
-});
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 
-const socialSchema = z.object({
-  total_employees: z.number().optional(),
-  male_employees: z.number().optional(),
-  female_employees: z.number().optional(),
-  new_hires: z.number().optional(),
-  attrition: z.number().optional(),
-  health_insurance: z.number().optional(),
-  accident_insurance: z.number().optional(),
-  parental_benefits: z.number().optional(),
-  pf_coverage: z.number().optional(),
-});
+const YEARS = ["2022", "2023", "2024", "2025", "2026"];
 
-const governanceSchema = z.object({
-  board_members: z.number().optional(),
-  women_percentage: z.number().optional(),
-  board_under30: z.number().optional(),
-  board_30to50: z.number().optional(),
-  board_above50: z.number().optional(),
-  cybersecurity_incidents: z.number().optional(),
-  corruption_incidents: z.number().optional(),
-  legal_fines: z.number().optional(),
-});
+const REPORTING_SPANS = ["Monthly", "Quarterly", "Annually"];
 
-// Main form schema
-const esgFormSchema = z.object({
-  site_id: z.string(),
-  environmentalData: environmentalSchema,
-  socialData: socialSchema, 
-  governanceData: governanceSchema,
-  submissionComment: z.string().optional(),
-});
+const ENV_CATEGORIES = {
+  "Energy Consumption": [
+    { id: "total_electricity", label: "Total electricity consumption", unit: "kWh" },
+    { id: "renewable_ppa", label: "Electricity from renewable sources", unit: "kWh" },
+    { id: "renewable_rooftop", label: "Electricity from renewable sources through Rooftop", unit: "kWh" },
+    { id: "coal_consumption", label: "Coal consumption", unit: "MT" },
+    { id: "hsd_consumption", label: "HSD (High-Speed Diesel) consumption", unit: "KL" },
+    { id: "furnace_oil_consumption", label: "Furnace Oil consumption", unit: "MT" },
+    { id: "petrol_consumption", label: "Petrol consumption", unit: "KL" }
+  ],
+  "Air Emissions": [
+    { id: "nox", label: "Oxides of Nitrogen (NOx)", unit: "MT" },
+    { id: "sox", label: "Sulfur Oxides (SOx)", unit: "MT" },
+    { id: "pm", label: "Particulate Matter (PM)", unit: "MT" },
+    { id: "pop", label: "Persistent Organic Pollutants", unit: "MT" },
+    { id: "voc", label: "Volatile Organic Compounds", unit: "MT" },
+    { id: "hap", label: "Hazardous Air Pollutants", unit: "MT" }
+  ],
+  "Water Management": [
+    { id: "water_withdrawal", label: "Total Water Withdrawal", unit: "KL" },
+    { id: "third_party_water", label: "Third-Party Water Usage", unit: "KL" },
+    { id: "rainwater", label: "Rainwater Harvesting", unit: "KL" },
+    { id: "wastewater_generated", label: "Total Wastewater Generated", unit: "KL" },
+    { id: "recycled_wastewater", label: "Recycled Wastewater", unit: "KL" },
+    { id: "water_discharged", label: "Water Discharged to Third Parties", unit: "KL" }
+  ],
+  "Waste Management": [
+    { id: "hazardous_landfill", label: "Hazardous Waste to Landfill", unit: "MT" },
+    { id: "hazardous_incinerated", label: "Hazardous Waste Incinerated", unit: "MT" },
+    { id: "hazardous_coprocessed", label: "Hazardous Waste Co-Processed", unit: "MT" },
+    { id: "total_hazardous", label: "Total Hazardous Waste", unit: "MT" },
+    { id: "plastic_waste", label: "Plastic Waste", unit: "MT" },
+    { id: "non_hazardous", label: "Non-Hazardous Waste", unit: "MT" },
+    { id: "bio_medical", label: "Bio-Medical Waste", unit: "MT" },
+    { id: "e_waste", label: "E-Waste", unit: "MT" },
+    { id: "waste_oil", label: "Waste Oil", unit: "MT" },
+    { id: "total_waste", label: "Total Waste Generated", unit: "MT" }
+  ]
+};
 
-// TypeScript types
-type EnvironmentalData = z.infer<typeof environmentalSchema>;
-type SocialData = z.infer<typeof socialSchema>;
-type GovernanceData = z.infer<typeof governanceSchema>;
-type ESGFormData = z.infer<typeof esgFormSchema>;
+const SOCIAL_CATEGORIES = {
+  "Employment & Workforce": [
+    { id: "total_employees", label: "Total Number of Employees", unit: "" },
+    { id: "male_employees", label: "Number of Male Employees", unit: "" },
+    { id: "female_employees", label: "Number of Female Employees", unit: "" },
+    { id: "new_hires", label: "Number of New Hires", unit: "" },
+    { id: "contract_male", label: "Number of Contract Workers (Male)", unit: "" },
+    { id: "contract_female", label: "Number of Contract Workers (Female)", unit: "" },
+    { id: "attrition", label: "Attrition (Absolute Number)", unit: "" }
+  ],
+  "Employee Benefits": [
+    { id: "health_insurance", label: "Employees with Health Insurance", unit: "%" },
+    { id: "accident_insurance", label: "Employees with Accident Insurance", unit: "%" },
+    { id: "parental_benefits", label: "Employees with Parental Benefits", unit: "%" },
+    { id: "pf_coverage", label: "Employees with PF Coverage", unit: "%" },
+    { id: "gratuity_coverage", label: "Employees with Gratuity Coverage", unit: "%" },
+    { id: "esi_coverage", label: "Employees with ESI Coverage", unit: "%" }
+  ]
+};
 
-// Define explicit types for API responses
-interface EnvironmentalDataResponse {
-  total_electricity?: number;
-  renewable_ppa?: number;
-  renewable_rooftop?: number;
-  coal_consumption?: number;
-  hsd_consumption?: number;
-  furnace_oil_consumption?: number;
-  petrol_consumption?: number;
-  nox?: number;
-  sox?: number;
-  pm?: number;
-  water_withdrawal?: number;
-  third_party_water?: number;
-  rainwater?: number;
-  total_waste?: number;
-  total_hazardous?: number;
-  non_hazardous?: number;
-}
-
-interface SocialDataResponse {
-  total_employees?: number;
-  male_employees?: number;
-  female_employees?: number;
-  new_hires?: number;
-  attrition?: number;
-  health_insurance?: number;
-  accident_insurance?: number;
-  parental_benefits?: number;
-  pf_coverage?: number;
-}
-
-interface GovernanceDataResponse {
-  board_members?: number;
-  women_percentage?: number;
-  board_under30?: number;
-  board_30to50?: number;
-  board_above50?: number;
-  cybersecurity_incidents?: number;
-  corruption_incidents?: number;
-  legal_fines?: number;
-}
-
-interface SubmissionResponse {
-  site_id?: string;
-  review_comment?: string;
-}
-
-interface SubmissionDetails {
-  submission?: SubmissionResponse;
-  environmentalData?: EnvironmentalDataResponse;
-  socialData?: SocialDataResponse;
-  governanceData?: GovernanceDataResponse;
-}
+const GOVERNANCE_CATEGORIES = {
+  "Board Composition": [
+    { id: "board_members", label: "Number of Board Members", unit: "" },
+    { id: "women_percentage", label: "Percentage of Women on Board", unit: "%" },
+    { id: "board_under30", label: "Board Members Under 30 Years", unit: "%" },
+    { id: "board_30to50", label: "Board Members Between 30-50 Years", unit: "%" },
+    { id: "board_above50", label: "Board Members Above 50 Years", unit: "%" }
+  ],
+  "Cybersecurity": [
+    { id: "cybersecurity_incidents", label: "Number of Data Privacy or Cybersecurity Incidents", unit: "" }
+  ],
+  "Business Ethics": [
+    { id: "corruption_incidents", label: "Number of Corruption and Bribery Incidents", unit: "" },
+    { id: "legal_fines", label: "Number of Legal Fines or Penalties", unit: "" }
+  ]
+};
 
 const FormEntry = () => {
-  const [activeTab, setActiveTab] = useState("environmental");
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = !!id;
   const { toast } = useToast();
-  const [isDraft, setIsDraft] = useState(false);
 
-  const { data: sites, isLoading: isLoadingSites, error: sitesError } = useQuery({
+  const [selectedSite, setSelectedSite] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [reportingSpan, setReportingSpan] = useState<string>("Monthly");
+  const [submitterName, setSubmitterName] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [activeTab, setActiveTab] = useState("environmental");
+  const [selectedCategory, setSelectedCategory] = useState<string>("Energy Consumption");
+  const [formData, setFormData] = useState({
+    environmental: {} as Record<string, number>,
+    social: {} as Record<string, number>,
+    governance: {} as Record<string, number>
+  });
+
+  const { data: sites, isLoading: isSitesLoading } = useQuery({
     queryKey: ['sites'],
     queryFn: fetchSites
   });
 
-  const { 
-    data: submissionDetails, 
-    isLoading: isLoadingSubmission, 
-    error: submissionError 
-  } = useQuery({
+  const { data: submissionDetails, isLoading: isSubmissionLoading } = useQuery({
     queryKey: ['submission', id],
-    queryFn: () => id ? fetchSubmissionDetails(id) : null,
-    enabled: !!id,
+    queryFn: () => fetchSubmissionDetails(id as string),
+    enabled: isEditMode
   });
 
-  const form = useForm<ESGFormData>({
-    resolver: zodResolver(esgFormSchema),
-    defaultValues: {
-      site_id: "",
-      environmentalData: {
-        total_electricity: undefined,
-        renewable_ppa: undefined,
-        renewable_rooftop: undefined,
-        coal_consumption: undefined,
-        hsd_consumption: undefined,
-        furnace_oil_consumption: undefined,
-        petrol_consumption: undefined,
-        nox: undefined,
-        sox: undefined,
-        pm: undefined,
-        water_withdrawal: undefined,
-        third_party_water: undefined,
-        rainwater: undefined,
-        total_waste: undefined,
-        total_hazardous: undefined,
-        non_hazardous: undefined,
-      },
-      socialData: {
-        total_employees: undefined,
-        male_employees: undefined,
-        female_employees: undefined,
-        new_hires: undefined,
-        attrition: undefined,
-        health_insurance: undefined,
-        accident_insurance: undefined,
-        parental_benefits: undefined,
-        pf_coverage: undefined,
-      },
-      governanceData: {
-        board_members: undefined,
-        women_percentage: undefined,
-        board_under30: undefined,
-        board_30to50: undefined,
-        board_above50: undefined,
-        cybersecurity_incidents: undefined,
-        corruption_incidents: undefined,
-        legal_fines: undefined,
-      },
-      submissionComment: "",
-    },
-  });
-
-  useEffect(() => {
-    if (submissionDetails) {
-      // Create type-safe objects with default values for form reset
-      const envData: EnvironmentalDataResponse = submissionDetails.environmentalData || {};
-      const socData: SocialDataResponse = submissionDetails.socialData || {};
-      const govData: GovernanceDataResponse = submissionDetails.governanceData || {};
+  const submitMutation = useMutation({
+    mutationFn: (isDraft: boolean) => {
+      let periodStart, periodEnd;
       
-      form.reset({
-        site_id: submissionDetails.submission?.site_id || "",
-        environmentalData: {
-          total_electricity: envData.total_electricity,
-          renewable_ppa: envData.renewable_ppa,
-          renewable_rooftop: envData.renewable_rooftop,
-          coal_consumption: envData.coal_consumption,
-          hsd_consumption: envData.hsd_consumption,
-          furnace_oil_consumption: envData.furnace_oil_consumption,
-          petrol_consumption: envData.petrol_consumption,
-          nox: envData.nox,
-          sox: envData.sox,
-          pm: envData.pm,
-          water_withdrawal: envData.water_withdrawal,
-          third_party_water: envData.third_party_water,
-          rainwater: envData.rainwater,
-          total_waste: envData.total_waste,
-          total_hazardous: envData.total_hazardous,
-          non_hazardous: envData.non_hazardous,
-        },
-        socialData: {
-          total_employees: socData.total_employees,
-          male_employees: socData.male_employees,
-          female_employees: socData.female_employees,
-          new_hires: socData.new_hires,
-          attrition: socData.attrition,
-          health_insurance: socData.health_insurance,
-          accident_insurance: socData.accident_insurance,
-          parental_benefits: socData.parental_benefits,
-          pf_coverage: socData.pf_coverage,
-        },
-        governanceData: {
-          board_members: govData.board_members,
-          women_percentage: govData.women_percentage,
-          board_under30: govData.board_under30,
-          board_30to50: govData.board_30to50,
-          board_above50: govData.board_above50,
-          cybersecurity_incidents: govData.cybersecurity_incidents,
-          corruption_incidents: govData.corruption_incidents,
-          legal_fines: govData.legal_fines,
-        },
-        submissionComment: submissionDetails.submission?.review_comment || "",
-      });
-    }
-  }, [submissionDetails, form]);
-
-  const submissionMutation = useMutation({
-    mutationFn: async (data: ESGFormData) => {
-      if (id) {
-        return updateSubmissionStatus(id, isDraft ? 'draft' : 'pending', "current-user", data.submissionComment);
+      const year = parseInt(selectedYear);
+      const monthIndex = MONTHS.indexOf(selectedMonth);
+      
+      if (reportingSpan === "Monthly" && monthIndex !== -1) {
+        periodStart = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-01`;
+        
+        const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+        periodEnd = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-${lastDay}`;
+      } else if (reportingSpan === "Quarterly") {
+        const quarter = Math.floor(monthIndex / 3);
+        const startMonth = quarter * 3 + 1;
+        const endMonth = startMonth + 2;
+        
+        periodStart = `${year}-${startMonth.toString().padStart(2, '0')}-01`;
+        
+        const lastDay = new Date(year, endMonth, 0).getDate();
+        periodEnd = `${year}-${endMonth.toString().padStart(2, '0')}-${lastDay}`;
       } else {
-        if (isDraft) {
-          return saveAsDraft(
-            data.site_id,
-            new Date().toISOString().split('T')[0], // Current date as period_start
-            new Date().toISOString().split('T')[0], // Current date as period_end
-            "current-user",
-            data.environmentalData,
-            data.socialData,
-            data.governanceData
-          );
-        } else {
-          return createSubmission(
-            data.site_id,
-            new Date().toISOString().split('T')[0], // Current date as period_start
-            new Date().toISOString().split('T')[0], // Current date as period_end
-            "current-user",
-            data.environmentalData,
-            data.socialData,
-            data.governanceData
-          );
+        periodStart = `${year}-01-01`;
+        periodEnd = `${year}-12-31`;
+      }
+      
+      if (isDraft) {
+        return saveAsDraft(
+          selectedSite,
+          periodStart,
+          periodEnd,
+          submitterName,
+          formData.environmental,
+          formData.social,
+          formData.governance
+        );
+      } else {
+        return createSubmission(
+          selectedSite,
+          periodStart,
+          periodEnd,
+          submitterName,
+          formData.environmental,
+          formData.social,
+          formData.governance
+        );
+      }
+    },
+    onSuccess: (data, variables) => {
+      if (variables) {
+        toast({
+          title: variables ? "Draft saved successfully!" : "ESG data submitted for approval",
+          description: variables ? "You can continue editing later." : "Your data has been submitted and is pending approval.",
+          duration: 5000,
+        });
+        if (!variables) {
+          navigate("/approvals");
         }
       }
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: `Form ${id ? 'updated' : 'submitted'} successfully!`,
-      });
-      navigate("/approvals");
-    },
     onError: (error) => {
-      toast({ 
-        variant: "destructive", 
-        title: "Error", 
-        description: `Error submitting form: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: "destructive",
       });
-    },
+    }
   });
 
-  const onSubmit = async (data: ESGFormData) => {
-    submissionMutation.mutate(data);
+  const [calculatedEmissions, setCalculatedEmissions] = useState({
+    electricity: 0,
+    coal: 0,
+    hsd: 0,
+    furnaceOil: 0,
+    petrol: 0,
+    total: 0
+  });
+
+  useEffect(() => {
+    if (isEditMode && submissionDetails) {
+      const { submission, environmentalData, socialData, governanceData } = submissionDetails;
+      
+      setSelectedSite(submission.site_id);
+      
+      const startDate = new Date(submission.period_start);
+      setSelectedMonth(MONTHS[startDate.getMonth()]);
+      setSelectedYear(startDate.getFullYear().toString());
+      
+      const periodStart = new Date(submission.period_start);
+      const periodEnd = new Date(submission.period_end);
+      const monthDiff = (periodEnd.getFullYear() - periodStart.getFullYear()) * 12 
+                         + periodEnd.getMonth() - periodStart.getMonth() + 1;
+      
+      if (monthDiff === 1) {
+        setReportingSpan("Monthly");
+      } else if (monthDiff === 3) {
+        setReportingSpan("Quarterly");
+      } else {
+        setReportingSpan("Annually");
+      }
+      
+      setSubmitterName(submission.submitted_by);
+      
+      setFormData({
+        environmental: { ...(environmentalData || {}) },
+        social: { ...(socialData || {}) },
+        governance: { ...(governanceData || {}) }
+      });
+    }
+  }, [isEditMode, submissionDetails]);
+
+  useEffect(() => {
+    const EMISSION_FACTORS = {
+      electricity: 0.82,
+      coal: 2.42,
+      hsd: 2.68,
+      furnaceOil: 3.15,
+      petrol: 2.3
+    };
+
+    const envData = formData.environmental;
+    
+    const electricityEmissions = (Number(envData.total_electricity) || 0) * EMISSION_FACTORS.electricity;
+    const coalEmissions = (Number(envData.coal_consumption) || 0) * EMISSION_FACTORS.coal * 1000;
+    const hsdEmissions = (Number(envData.hsd_consumption) || 0) * EMISSION_FACTORS.hsd * 1000;
+    const furnaceOilEmissions = (Number(envData.furnace_oil_consumption) || 0) * EMISSION_FACTORS.furnaceOil * 1000;
+    const petrolEmissions = (Number(envData.petrol_consumption) || 0) * EMISSION_FACTORS.petrol * 1000;
+    
+    const totalEmissions = electricityEmissions + coalEmissions + hsdEmissions + furnaceOilEmissions + petrolEmissions;
+    
+    setCalculatedEmissions({
+      electricity: electricityEmissions / 1000,
+      coal: coalEmissions / 1000,
+      hsd: hsdEmissions / 1000,
+      furnaceOil: furnaceOilEmissions / 1000,
+      petrol: petrolEmissions / 1000,
+      total: totalEmissions / 1000
+    });
+  }, [formData.environmental]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedSite) {
+      toast({
+        title: "Error",
+        description: "Please select a site location",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!selectedMonth && reportingSpan === "Monthly") {
+      toast({
+        title: "Error",
+        description: "Please select a month",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!selectedYear) {
+      toast({
+        title: "Error",
+        description: "Please select a year",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!submitterName) {
+      toast({
+        title: "Error",
+        description: "Please enter your name",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    submitMutation.mutate(false);
   };
 
-  if (isLoadingSites || isLoadingSubmission) {
+  const handleSaveDraft = () => {
+    if (!selectedSite) {
+      toast({
+        title: "Error",
+        description: "Please select a site location",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!selectedYear) {
+      toast({
+        title: "Error",
+        description: "Please select a year",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    submitMutation.mutate(true);
+  };
+
+  const updateFormData = (category: 'environmental' | 'social' | 'governance', id: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [id]: value === '' ? null : Number(value)
+      }
+    }));
+  };
+
+  const getCurrentParameters = () => {
+    if (activeTab === "environmental") {
+      return ENV_CATEGORIES[selectedCategory as keyof typeof ENV_CATEGORIES] || [];
+    } else if (activeTab === "social") {
+      return SOCIAL_CATEGORIES[selectedCategory as keyof typeof SOCIAL_CATEGORIES] || [];
+    } else {
+      return GOVERNANCE_CATEGORIES[selectedCategory as keyof typeof GOVERNANCE_CATEGORIES] || [];
+    }
+  };
+
+  const getCurrentCategories = () => {
+    if (activeTab === "environmental") {
+      return Object.keys(ENV_CATEGORIES);
+    } else if (activeTab === "social") {
+      return Object.keys(SOCIAL_CATEGORIES);
+    } else {
+      return Object.keys(GOVERNANCE_CATEGORIES);
+    }
+  };
+
+  if (isSubmissionLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
-        Loading...
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <span className="ml-2 text-lg text-gray-600">Loading submission data...</span>
       </div>
     );
   }
 
-  if (sitesError || submissionError) {
-    return <div className="text-red-500">Error: {(sitesError as Error)?.message || (submissionError as Error)?.message}</div>;
-  }
-
   return (
-    <div className="container max-w-4xl mx-auto py-10">
-      <GlassCard className="p-8">
-        <h1 className="text-2xl font-bold mb-4">{id ? "Edit ESG Form" : "Enter ESG Form"}</h1>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <div className="container max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">ESG Data Collection</h1>
+          <p className="text-gray-500">Record environmental, social, and governance metrics for sustainability reporting</p>
+        </div>
+        <Button 
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1"
+        >
+          <ArrowLeft size={16} />
+          Back
+        </Button>
+      </div>
+
+      <GlassCard className="p-6">
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-6 mb-8 grid-cols-1 md:grid-cols-3">
             <div>
-              <FormField
-                control={form.control}
-                name="site_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Select Site</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a site" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {sites && Array.isArray(sites) && sites.map((site) => (
-                          <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              <Label htmlFor="site">Site Location</Label>
+              {isSitesLoading ? (
+                <div className="flex items-center mt-2 text-sm text-gray-500">
+                  <Loader2 size={16} className="mr-2 animate-spin" />
+                  Loading sites...
+                </div>
+              ) : (
+                <Select value={selectedSite} onValueChange={setSelectedSite}>
+                  <SelectTrigger id="site" className="mt-1">
+                    <SelectValue placeholder="Select site location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sites?.map(site => (
+                      <SelectItem key={site.id} value={site.id}>
+                        {site.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            
+            <div>
+              <Label htmlFor="month">Month</Label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={reportingSpan !== "Monthly"}>
+                <SelectTrigger id="month" className="mt-1">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map(month => (
+                    <SelectItem key={month} value={month}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="year">Year</Label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger id="year" className="mt-1">
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEARS.map(year => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="reporting-span">Reporting Span</Label>
+              <Select value={reportingSpan} onValueChange={setReportingSpan}>
+                <SelectTrigger id="reporting-span" className="mt-1">
+                  <SelectValue placeholder="Select reporting span" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REPORTING_SPANS.map(span => (
+                    <SelectItem key={span} value={span}>
+                      {span}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="md:col-span-2">
+              <Label htmlFor="submitter">Submitted By</Label>
+              <Input 
+                id="submitter" 
+                placeholder="Your name" 
+                value={submitterName}
+                onChange={(e) => setSubmitterName(e.target.value)}
+                className="mt-1"
               />
             </div>
+          </div>
 
-            <Tabs defaultValue="environmental" className="space-y-4" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="environmental">Environmental</TabsTrigger>
-                <TabsTrigger value="social">Social</TabsTrigger>
-                <TabsTrigger value="governance">Governance</TabsTrigger>
-              </TabsList>
-              <TabsContent value="environmental">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.total_electricity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Electricity (kWh)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Total Electricity" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.renewable_ppa"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Renewable Energy (PPA) (kWh)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Renewable Energy (PPA)" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.renewable_rooftop"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Renewable Energy (Rooftop) (kWh)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Renewable Energy (Rooftop)" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.coal_consumption"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Coal Consumption (MT)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Coal Consumption" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.hsd_consumption"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>HSD Consumption (KL)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="HSD Consumption" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.furnace_oil_consumption"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Furnace Oil Consumption (MT)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Furnace Oil Consumption" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.petrol_consumption"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Petrol Consumption (KL)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Petrol Consumption" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.nox"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>NOx (MT)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="NOx" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.sox"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>SOx (MT)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="SOx" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.pm"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>PM (MT)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="PM" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.water_withdrawal"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Water Withdrawal (KL)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Water Withdrawal" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.third_party_water"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Third-Party Water (KL)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Third-Party Water" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.rainwater"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Rainwater Harvesting (KL)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Rainwater Harvesting" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.total_waste"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Waste (MT)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Total Waste" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.total_hazardous"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Hazardous Waste (MT)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Total Hazardous Waste" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="environmentalData.non_hazardous"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Non-Hazardous Waste (MT)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Non-Hazardous Waste" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </TabsContent>
-
-              <TabsContent value="social">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="socialData.total_employees"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Employees</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Total Employees" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="socialData.male_employees"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Male Employees</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Male Employees" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="socialData.female_employees"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Female Employees</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Female Employees" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="socialData.new_hires"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Hires</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="New Hires" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="socialData.attrition"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Attrition</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Attrition" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="socialData.health_insurance"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Health Insurance (%)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Health Insurance" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="socialData.accident_insurance"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Accident Insurance (%)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Accident Insurance" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="socialData.parental_benefits"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Parental Benefits (%)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Parental Benefits" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="socialData.pf_coverage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>PF Coverage (%)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="PF Coverage" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </TabsContent>
-
-              <TabsContent value="governance">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="governanceData.board_members"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Board Members</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Board Members" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="governanceData.women_percentage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Women on Board (%)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Women on Board" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="governanceData.board_under30"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Board Members Under 30 (%)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Board Members Under 30" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="governanceData.board_30to50"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Board Members 30-50 (%)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Board Members 30-50" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="governanceData.board_above50"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Board Members Above 50 (%)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Board Members Above 50" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="governanceData.cybersecurity_incidents"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cybersecurity Incidents</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Cybersecurity Incidents" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="governanceData.corruption_incidents"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Corruption Incidents</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Corruption Incidents" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="governanceData.legal_fines"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Legal Fines</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Legal Fines" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            <div>
-              <FormField
-                control={form.control}
-                name="submissionComment"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Submission Comment</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Add any relevant comments about this submission."
-                        className="resize-none"
-                        {...field}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
+            <TabsList className="w-full grid grid-cols-3 mb-6">
+              <TabsTrigger value="environmental" className="flex items-center gap-2">
+                <Leaf size={16} />
+                <span>Environmental</span>
+              </TabsTrigger>
+              <TabsTrigger value="social" className="flex items-center gap-2">
+                <Users size={16} />
+                <span>Social</span>
+              </TabsTrigger>
+              <TabsTrigger value="governance" className="flex items-center gap-2">
+                <Briefcase size={16} />
+                <span>Governance</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            <div className="mb-4">
+              <Label htmlFor="subcategory">Subcategory</Label>
+              <Select 
+                value={selectedCategory} 
+                onValueChange={setSelectedCategory}
+              >
+                <SelectTrigger id="subcategory" className="mt-1">
+                  <SelectValue placeholder="Select subcategory" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getCurrentCategories().map(category => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-lg font-medium mb-4">Parameters</h3>
+              
+              <div className="space-y-4">
+                {getCurrentParameters().map(param => (
+                  <div key={param.id} className="flex items-center border-b border-gray-100 pb-3">
+                    <div className="mr-2">
+                      <PlusCircle size={18} className="text-gray-400" />
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor={param.id} className="font-medium">
+                        {param.label}
+                        <span className="text-xs text-gray-500 block mt-0.5">
+                          {param.unit}
+                        </span>
+                      </Label>
+                    </div>
+                    <div className="w-40">
+                      <Input
+                        id={param.id}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData[activeTab as keyof typeof formData][param.id] || ''}
+                        onChange={(e) => updateFormData(
+                          activeTab as 'environmental' | 'social' | 'governance',
+                          param.id,
+                          e.target.value
+                        )}
+                        className="text-right"
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => navigate(-1)}>
-                Cancel
-              </Button>
-              <div className="flex gap-2">
-                <Button 
-                  variant="secondary" 
-                  type="submit" 
-                  onClick={() => setIsDraft(true)}
-                  disabled={submissionMutation.isPending}
-                >
-                  {submissionMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save as Draft
-                </Button>
-                <Button 
-                  type="submit" 
-                  onClick={() => setIsDraft(false)}
-                  disabled={submissionMutation.isPending}
-                >
-                  {submissionMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Submit Form
-                </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </form>
-        </Form>
+
+            {activeTab === "environmental" && selectedCategory === "Energy Consumption" && (
+              <div className="mt-4 bg-blue-50 p-4 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <AlertCircle size={16} className="text-blue-600 mr-2" />
+                  <h4 className="text-sm font-semibold text-blue-800">Estimated Emissions (tCO2e)</h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500">Electricity</p>
+                    <p className="font-medium">{calculatedEmissions.electricity.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500">Coal</p>
+                    <p className="font-medium">{calculatedEmissions.coal.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500">HSD</p>
+                    <p className="font-medium">{calculatedEmissions.hsd.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500">Furnace Oil</p>
+                    <p className="font-medium">{calculatedEmissions.furnaceOil.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500">Petrol</p>
+                    <p className="font-medium">{calculatedEmissions.petrol.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500 font-bold">Total</p>
+                    <p className="font-bold text-blue-700">{calculatedEmissions.total.toFixed(2)}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">These are estimated values. Actual emissions may vary based on precise emission factors.</p>
+              </div>
+            )}
+          </Tabs>
+          
+          <div className="mb-6">
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              placeholder="Add any additional context or notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="mt-1 h-24"
+            />
+          </div>
+          
+          <div className="border-t pt-6 flex flex-col sm:flex-row justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={handleSaveDraft}
+              disabled={submitMutation.isPending}
+            >
+              {submitMutation.isPending ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Save size={16} />
+              )}
+              Save as Draft
+            </Button>
+            <Button
+              type="submit"
+              className="gap-2 bg-blue-500 hover:bg-blue-600"
+              disabled={submitMutation.isPending}
+            >
+              {submitMutation.isPending ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Send size={16} />
+              )}
+              Submit ESG Data
+            </Button>
+          </div>
+        </form>
       </GlassCard>
     </div>
   );
