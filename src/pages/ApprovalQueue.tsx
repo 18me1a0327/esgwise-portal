@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { 
   ChevronDown, 
   ChevronLeft, 
@@ -38,6 +39,56 @@ type Submission = {
   site: {
     id: string;
     name: string;
+  };
+};
+
+// Define types for the submission details data
+type SubmissionDetailsData = {
+  submission: Submission;
+  environmentalData: {
+    total_electricity?: number;
+    renewable_ppa?: number;
+    renewable_rooftop?: number;
+    coal_consumption?: number;
+    hsd_consumption?: number;
+    furnace_oil_consumption?: number;
+    petrol_consumption?: number;
+    total_emissions?: number;
+    electricity_emissions?: number;
+    coal_emissions?: number;
+    hsd_emissions?: number;
+    furnace_oil_emissions?: number;
+    petrol_emissions?: number;
+    nox?: number;
+    sox?: number;
+    pm?: number;
+    water_withdrawal?: number;
+    third_party_water?: number;
+    rainwater?: number;
+    total_waste?: number;
+    total_hazardous?: number;
+    non_hazardous?: number;
+  };
+  socialData: {
+    total_employees?: number;
+    male_employees?: number;
+    female_employees?: number;
+    new_hires?: number;
+    attrition?: number;
+    health_insurance?: number;
+    accident_insurance?: number;
+    parental_benefits?: number;
+    pf_coverage?: number;
+  };
+  governanceData: {
+    board_members?: number;
+    women_percentage?: number;
+    board_under30?: number;
+    board_30to50?: number;
+    board_above50?: number;
+    cybersecurity_incidents?: number;
+    corruption_incidents?: number;
+    legal_fines?: number;
   };
 };
 
@@ -81,7 +132,11 @@ const ApprovalQueue = () => {
       setRejectionReason("");
     },
     onError: (error) => {
-      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: "destructive",
+      });
     }
   });
 
@@ -128,7 +183,10 @@ const ApprovalQueue = () => {
       status: 'approved' 
     });
     
-    toast.success(`Submission for ${submission.site.name} has been approved.`);
+    toast({
+      title: "Success",
+      description: `Submission for ${submission.site.name} has been approved.`,
+    });
   };
 
   const handleReject = () => {
@@ -139,7 +197,10 @@ const ApprovalQueue = () => {
         comment: rejectionReason 
       });
       
-      toast.success(`Submission for ${selectedSubmission.site.name} has been rejected.`);
+      toast({
+        title: "Success",
+        description: `Submission for ${selectedSubmission.site.name} has been rejected.`,
+      });
     }
   };
 
@@ -168,6 +229,8 @@ const ApprovalQueue = () => {
     if (value === null || value === undefined) return "-";
     return `${typeof value === 'number' ? value.toLocaleString() : value}${unit ? ` ${unit}` : ''}`;
   };
+
+  const submissionDetailsData = submissionDetails as SubmissionDetailsData | null;
 
   return (
     <div className="container max-w-6xl mx-auto">
@@ -438,7 +501,7 @@ const ApprovalQueue = () => {
             <div className="flex justify-center items-center py-10">
               <Loader2 size={30} className="animate-spin text-gray-400" />
             </div>
-          ) : submissionDetails ? (
+          ) : submissionDetailsData ? (
             <div className="py-4">
               <Tabs defaultValue="environmental" value={activeViewTab} onValueChange={setActiveViewTab}>
                 <TabsList className="w-full grid grid-cols-3">
@@ -454,31 +517,31 @@ const ApprovalQueue = () => {
                       <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
                         <div>
                           <p className="text-sm text-gray-500">Total Electricity</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.total_electricity, "kWh")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.total_electricity, "kWh")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Renewable Energy (PPA)</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.renewable_ppa, "kWh")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.renewable_ppa, "kWh")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Renewable Energy (Rooftop)</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.renewable_rooftop, "kWh")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.renewable_rooftop, "kWh")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Coal Consumption</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.coal_consumption, "MT")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.coal_consumption, "MT")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">HSD Consumption</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.hsd_consumption, "KL")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.hsd_consumption, "KL")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Furnace Oil Consumption</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.furnace_oil_consumption, "MT")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.furnace_oil_consumption, "MT")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Petrol Consumption</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.petrol_consumption, "KL")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.petrol_consumption, "KL")}</p>
                         </div>
                       </div>
                     </div>
@@ -488,27 +551,27 @@ const ApprovalQueue = () => {
                       <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
                         <div>
                           <p className="text-sm text-gray-500">Total Emissions</p>
-                          <p className="font-medium text-red-600">{formatValue(submissionDetails.environmentalData.total_emissions, "tCO2e")}</p>
+                          <p className="font-medium text-red-600">{formatValue(submissionDetailsData.environmentalData.total_emissions, "tCO2e")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Electricity Emissions</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.electricity_emissions, "tCO2e")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.electricity_emissions, "tCO2e")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Coal Emissions</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.coal_emissions, "tCO2e")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.coal_emissions, "tCO2e")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">HSD Emissions</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.hsd_emissions, "tCO2e")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.hsd_emissions, "tCO2e")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Furnace Oil Emissions</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.furnace_oil_emissions, "tCO2e")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.furnace_oil_emissions, "tCO2e")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Petrol Emissions</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.petrol_emissions, "tCO2e")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.petrol_emissions, "tCO2e")}</p>
                         </div>
                       </div>
                     </div>
@@ -518,15 +581,15 @@ const ApprovalQueue = () => {
                       <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
                         <div>
                           <p className="text-sm text-gray-500">NOx</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.nox, "MT")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.nox, "MT")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">SOx</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.sox, "MT")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.sox, "MT")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">PM</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.pm, "MT")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.pm, "MT")}</p>
                         </div>
                       </div>
                     </div>
@@ -536,15 +599,15 @@ const ApprovalQueue = () => {
                       <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
                         <div>
                           <p className="text-sm text-gray-500">Water Withdrawal</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.water_withdrawal, "KL")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.water_withdrawal, "KL")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Third-Party Water</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.third_party_water, "KL")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.third_party_water, "KL")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Rainwater Harvesting</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.rainwater, "KL")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.rainwater, "KL")}</p>
                         </div>
                       </div>
                     </div>
@@ -554,15 +617,15 @@ const ApprovalQueue = () => {
                       <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
                         <div>
                           <p className="text-sm text-gray-500">Total Waste</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.total_waste, "MT")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.total_waste, "MT")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Hazardous Waste</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.total_hazardous, "MT")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.total_hazardous, "MT")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Non-Hazardous Waste</p>
-                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.non_hazardous, "MT")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.environmentalData.non_hazardous, "MT")}</p>
                         </div>
                       </div>
                     </div>
@@ -576,23 +639,23 @@ const ApprovalQueue = () => {
                       <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
                         <div>
                           <p className="text-sm text-gray-500">Total Employees</p>
-                          <p className="font-medium">{formatValue(submissionDetails.socialData.total_employees)}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.socialData.total_employees)}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Male Employees</p>
-                          <p className="font-medium">{formatValue(submissionDetails.socialData.male_employees)}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.socialData.male_employees)}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Female Employees</p>
-                          <p className="font-medium">{formatValue(submissionDetails.socialData.female_employees)}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.socialData.female_employees)}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">New Hires</p>
-                          <p className="font-medium">{formatValue(submissionDetails.socialData.new_hires)}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.socialData.new_hires)}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Attrition</p>
-                          <p className="font-medium">{formatValue(submissionDetails.socialData.attrition)}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.socialData.attrition)}</p>
                         </div>
                       </div>
                     </div>
@@ -602,19 +665,19 @@ const ApprovalQueue = () => {
                       <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
                         <div>
                           <p className="text-sm text-gray-500">Health Insurance</p>
-                          <p className="font-medium">{formatValue(submissionDetails.socialData.health_insurance, "%")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.socialData.health_insurance, "%")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Accident Insurance</p>
-                          <p className="font-medium">{formatValue(submissionDetails.socialData.accident_insurance, "%")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.socialData.accident_insurance, "%")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Parental Benefits</p>
-                          <p className="font-medium">{formatValue(submissionDetails.socialData.parental_benefits, "%")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.socialData.parental_benefits, "%")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">PF Coverage</p>
-                          <p className="font-medium">{formatValue(submissionDetails.socialData.pf_coverage, "%")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.socialData.pf_coverage, "%")}</p>
                         </div>
                       </div>
                     </div>
@@ -628,23 +691,23 @@ const ApprovalQueue = () => {
                       <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
                         <div>
                           <p className="text-sm text-gray-500">Board Members</p>
-                          <p className="font-medium">{formatValue(submissionDetails.governanceData.board_members)}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.governanceData.board_members)}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Women on Board</p>
-                          <p className="font-medium">{formatValue(submissionDetails.governanceData.women_percentage, "%")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.governanceData.women_percentage, "%")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Board Members Under 30</p>
-                          <p className="font-medium">{formatValue(submissionDetails.governanceData.board_under30, "%")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.governanceData.board_under30, "%")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Board Members 30-50</p>
-                          <p className="font-medium">{formatValue(submissionDetails.governanceData.board_30to50, "%")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.governanceData.board_30to50, "%")}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Board Members Above 50</p>
-                          <p className="font-medium">{formatValue(submissionDetails.governanceData.board_above50, "%")}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.governanceData.board_above50, "%")}</p>
                         </div>
                       </div>
                     </div>
@@ -654,15 +717,15 @@ const ApprovalQueue = () => {
                       <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
                         <div>
                           <p className="text-sm text-gray-500">Cybersecurity Incidents</p>
-                          <p className="font-medium">{formatValue(submissionDetails.governanceData.cybersecurity_incidents)}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.governanceData.cybersecurity_incidents)}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Corruption Incidents</p>
-                          <p className="font-medium">{formatValue(submissionDetails.governanceData.corruption_incidents)}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.governanceData.corruption_incidents)}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Legal Fines</p>
-                          <p className="font-medium">{formatValue(submissionDetails.governanceData.legal_fines)}</p>
+                          <p className="font-medium">{formatValue(submissionDetailsData.governanceData.legal_fines)}</p>
                         </div>
                       </div>
                     </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Leaf, 
   Users, 
@@ -25,7 +25,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchSites } from "@/services/siteService";
 import { createSubmission, saveAsDraft, fetchSubmissionDetails } from "@/services/esgSubmissionService";
-import { useToast } from "@/hooks/use-toast";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -288,22 +287,38 @@ const FormEntry = () => {
     e.preventDefault();
     
     if (!selectedSite) {
-      toast.error("Please select a site location");
+      toast({
+        title: "Error",
+        description: "Please select a site location",
+        variant: "destructive",
+      });
       return;
     }
     
     if (!selectedMonth && reportingSpan === "Monthly") {
-      toast.error("Please select a month");
+      toast({
+        title: "Error",
+        description: "Please select a month",
+        variant: "destructive",
+      });
       return;
     }
     
     if (!selectedYear) {
-      toast.error("Please select a year");
+      toast({
+        title: "Error",
+        description: "Please select a year",
+        variant: "destructive",
+      });
       return;
     }
     
     if (!submitterName) {
-      toast.error("Please enter your name");
+      toast({
+        title: "Error",
+        description: "Please enter your name",
+        variant: "destructive",
+      });
       return;
     }
     
@@ -312,12 +327,20 @@ const FormEntry = () => {
 
   const handleSaveDraft = () => {
     if (!selectedSite) {
-      toast.error("Please select a site location");
+      toast({
+        title: "Error",
+        description: "Please select a site location",
+        variant: "destructive",
+      });
       return;
     }
     
     if (!selectedYear) {
-      toast.error("Please select a year");
+      toast({
+        title: "Error",
+        description: "Please select a year",
+        variant: "destructive",
+      });
       return;
     }
     
