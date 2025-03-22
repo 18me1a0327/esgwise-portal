@@ -53,8 +53,17 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
     { name: 'Scope 3 (Value Chain)', value: data.reduce((sum, item) => sum + item.scope3, 0) },
   ];
 
-  // Extract periods for x-axis labels
-  const timeLabels = data.map(item => item.period);
+  // Format date to show as MMM'YY (e.g., Jan'25)
+  const formatXAxisTick = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      const month = date.toLocaleString('default', { month: 'short' });
+      const year = date.getFullYear().toString().slice(2);
+      return `${month}'${year}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
 
   return (
     <GlassCard className="p-5" hoverable>
@@ -90,12 +99,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
         </div>
 
         <div className="bg-gray-50 p-3 rounded flex justify-between items-center">
-          <div className="space-y-1">
-            <p className="text-sm text-gray-600">Scope 1: Direct emissions from owned sources (fuel combustion, company vehicles)</p>
-            <p className="text-sm text-gray-600">Scope 2: Indirect emissions from purchased electricity, steam, heating, and cooling</p>
-            <p className="text-sm text-gray-600">Scope 3: All other indirect emissions in the value chain (business travel, waste, etc.)</p>
-          </div>
-          <div className="text-center">
+          <div className="text-center w-full">
             <p className="text-sm text-gray-500">Total Emissions</p>
             <p className="text-2xl font-bold">{Math.round(data.reduce((sum, item) => sum + item.total, 0))} tCO2e</p>
           </div>
@@ -106,16 +110,43 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={formatXAxisTick}
+                />
                 <YAxis />
                 <Tooltip 
                   formatter={(value) => [`${value.toLocaleString()} tCO2e`, '']}
-                  labelFormatter={(label) => `Period: ${label}`}
+                  labelFormatter={(label) => `${formatXAxisTick(label)}`}
                 />
                 <Legend />
-                <Bar dataKey="scope1" name="Scope 1 (Direct)" stackId="a" fill="#FF453A" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="scope2" name="Scope 2 (Indirect)" stackId="a" fill="#FF9F0A" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="scope3" name="Scope 3 (Value Chain)" stackId="a" fill="#30D158" radius={[4, 4, 0, 0]} />
+                <Bar 
+                  dataKey="scope1" 
+                  name="Scope 1 (Direct)" 
+                  stackId="a" 
+                  fill="#FF453A" 
+                  radius={[4, 4, 0, 0]} 
+                  isAnimationActive={false}
+                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
+                />
+                <Bar 
+                  dataKey="scope2" 
+                  name="Scope 2 (Indirect)" 
+                  stackId="a" 
+                  fill="#FF9F0A" 
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
+                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
+                />
+                <Bar 
+                  dataKey="scope3" 
+                  name="Scope 3 (Value Chain)" 
+                  stackId="a" 
+                  fill="#30D158" 
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
+                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -123,17 +154,56 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={formatXAxisTick}
+                />
                 <YAxis />
                 <Tooltip 
                   formatter={(value) => [`${value.toLocaleString()} tCO2e`, '']}
-                  labelFormatter={(label) => `Period: ${label}`}
+                  labelFormatter={(label) => `${formatXAxisTick(label)}`}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="scope1" name="Scope 1 (Direct)" stroke="#FF453A" strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="scope2" name="Scope 2 (Indirect)" stroke="#FF9F0A" strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="scope3" name="Scope 3 (Value Chain)" stroke="#30D158" strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="total" name="Total Emissions" stroke="#0A84FF" strokeWidth={2} dot={{ r: 4 }} />
+                <Line 
+                  type="monotone" 
+                  dataKey="scope1" 
+                  name="Scope 1 (Direct)" 
+                  stroke="#FF453A" 
+                  strokeWidth={2} 
+                  dot={{ r: 4 }} 
+                  isAnimationActive={false}
+                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="scope2" 
+                  name="Scope 2 (Indirect)" 
+                  stroke="#FF9F0A" 
+                  strokeWidth={2} 
+                  dot={{ r: 4 }} 
+                  isAnimationActive={false}
+                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="scope3" 
+                  name="Scope 3 (Value Chain)" 
+                  stroke="#30D158" 
+                  strokeWidth={2} 
+                  dot={{ r: 4 }} 
+                  isAnimationActive={false}
+                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="total" 
+                  name="Total Emissions" 
+                  stroke="#0A84FF" 
+                  strokeWidth={2} 
+                  dot={{ r: 4 }} 
+                  isAnimationActive={false}
+                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
+                />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -141,16 +211,46 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={formatXAxisTick}
+                />
                 <YAxis />
                 <Tooltip 
                   formatter={(value) => [`${value.toLocaleString()} tCO2e`, '']}
-                  labelFormatter={(label) => `Period: ${label}`}
+                  labelFormatter={(label) => `${formatXAxisTick(label)}`}
                 />
                 <Legend />
-                <Area type="monotone" dataKey="scope1" name="Scope 1 (Direct)" stackId="1" stroke="#FF453A" fill="#FF453A" />
-                <Area type="monotone" dataKey="scope2" name="Scope 2 (Indirect)" stackId="1" stroke="#FF9F0A" fill="#FF9F0A" />
-                <Area type="monotone" dataKey="scope3" name="Scope 3 (Value Chain)" stackId="1" stroke="#30D158" fill="#30D158" />
+                <Area 
+                  type="monotone" 
+                  dataKey="scope1" 
+                  name="Scope 1 (Direct)" 
+                  stackId="1" 
+                  stroke="#FF453A" 
+                  fill="#FF453A"
+                  isAnimationActive={false}
+                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="scope2" 
+                  name="Scope 2 (Indirect)" 
+                  stackId="1" 
+                  stroke="#FF9F0A" 
+                  fill="#FF9F0A"
+                  isAnimationActive={false}
+                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="scope3" 
+                  name="Scope 3 (Value Chain)" 
+                  stackId="1" 
+                  stroke="#30D158" 
+                  fill="#30D158"
+                  isAnimationActive={false}
+                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
+                />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -166,6 +266,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   fill="#8884d8"
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  isAnimationActive={false}
                 >
                   {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
