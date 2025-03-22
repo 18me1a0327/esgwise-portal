@@ -105,8 +105,8 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
         </div>
 
         <div className="h-[300px] mt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            {metric === 'consumption' ? (
+          {metric === 'consumption' ? (
+            <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
@@ -120,18 +120,25 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
                 <Bar yAxisId="left" dataKey="fossilFuels" name="Fossil Fuels" fill="#FF453A" radius={[4, 4, 0, 0]} />
                 <Line yAxisId="right" type="monotone" dataKey="renewableEnergy" name="Renewable Trend" stroke="#22C55E" strokeWidth={2} dot={{ stroke: '#22C55E', strokeWidth: 2, r: 4 }} />
               </ComposedChart>
-            ) : (
+            </ResponsiveContainer>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={renewableData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
                 <YAxis domain={[0, 100]} />
-                <Tooltip formatter={(value, name) => name === 'renewablePercentage' ? [`${value.toFixed(1)}%`, 'Renewable %'] : [`${value.toLocaleString()} kWh`, name]} />
+                <Tooltip formatter={(value, name) => {
+                  if (name === 'renewablePercentage') {
+                    return [`${typeof value === 'number' ? value.toFixed(1) : value}%`, 'Renewable %'];
+                  }
+                  return [`${typeof value === 'number' ? value.toLocaleString() : value} kWh`, name];
+                }} />
                 <Legend />
                 <Bar dataKey="totalElectricity" name="Total Electricity" fill="#0A84FF" radius={[4, 4, 0, 0]} fillOpacity={0.3} />
                 <Line type="monotone" dataKey="renewablePercentage" name="Renewable %" stroke="#22C55E" strokeWidth={3} dot={{ stroke: '#22C55E', strokeWidth: 2, r: 4 }} />
               </ComposedChart>
-            )}
-          </ResponsiveContainer>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="flex justify-between mt-4">

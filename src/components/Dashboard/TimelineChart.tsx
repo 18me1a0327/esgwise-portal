@@ -110,8 +110,8 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
         </div>
 
         <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            {selectedChartType === 'bar' && (
+          {selectedChartType === 'bar' && (
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
@@ -127,8 +127,10 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                   />
                 ))}
               </BarChart>
-            )}
-            {selectedChartType === 'line' && (
+            </ResponsiveContainer>
+          )}
+          {selectedChartType === 'line' && (
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
@@ -146,8 +148,10 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                   />
                 ))}
               </LineChart>
-            )}
-            {selectedChartType === 'area' && (
+            </ResponsiveContainer>
+          )}
+          {selectedChartType === 'area' && (
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
@@ -165,8 +169,8 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                   />
                 ))}
               </AreaChart>
-            )}
-          </ResponsiveContainer>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
     </GlassCard>

@@ -19,7 +19,7 @@ import TimelineEnergyChart from "@/components/Dashboard/TimelineEnergyChart";
 import TimelineChart from "@/components/Dashboard/TimelineChart";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PieChart, Pie, Cell } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { fetchDashboardData } from "@/services/dashboardService";
 import { fetchSites } from "@/services/siteService";
 
@@ -86,6 +86,19 @@ const Dashboard = () => {
     { name: 'Gratuity', value: Number(item.gratuity_coverage) || 0 },
     { name: 'ESI', value: Number(item.esi_coverage) || 0 },
   ]).flat() || [];
+
+  // Create social metrics data for TimelineChart with required 'date' field
+  const socialMetricsData = dashboardData?.socialData?.map(item => ({
+    name: item.submission?.sites?.name || 'Unknown',
+    date: item.submission?.period_start || '',
+    period: `${new Date(item.submission?.period_start).toLocaleDateString()} - ${new Date(item.submission?.period_end).toLocaleDateString()}`,
+    'Health Insurance': Number(item.health_insurance) || 0,
+    'Accident Insurance': Number(item.accident_insurance) || 0,
+    'Parental Benefits': Number(item.parental_benefits) || 0,
+    'PF Coverage': Number(item.pf_coverage) || 0,
+    'Gratuity': Number(item.gratuity_coverage) || 0,
+    'ESI': Number(item.esi_coverage) || 0,
+  })) || [];
 
   return (
     <div className="container max-w-7xl mx-auto">
@@ -225,48 +238,41 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <GlassCard className="p-5" hoverable>
               <h3 className="text-base font-medium mb-4">Workforce Distribution</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={employeeData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {employeeData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={employeeData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {employeeData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </GlassCard>
             
             <GlassCard className="p-5" hoverable>
               <h3 className="text-base font-medium mb-4">Employee Benefits Coverage (%)</h3>
-              <ResponsiveContainer width="100%" height={300}>
+              <div className="h-[300px]">
                 <TimelineChart 
                   title=""
-                  data={dashboardData?.socialData?.map(item => ({
-                    name: item.submission?.sites?.name || 'Unknown',
-                    period: `${new Date(item.submission?.period_start).toLocaleDateString()} - ${new Date(item.submission?.period_end).toLocaleDateString()}`,
-                    'Health Insurance': Number(item.health_insurance) || 0,
-                    'Accident Insurance': Number(item.accident_insurance) || 0,
-                    'Parental Benefits': Number(item.parental_benefits) || 0,
-                    'PF Coverage': Number(item.pf_coverage) || 0,
-                    'Gratuity': Number(item.gratuity_coverage) || 0,
-                    'ESI': Number(item.esi_coverage) || 0,
-                  })) || []}
+                  data={socialMetricsData}
                   dataKeys={['Health Insurance', 'Accident Insurance', 'Parental Benefits', 'PF Coverage', 'Gratuity', 'ESI']}
                   colors={COLORS}
                   chartType="line"
                   unit="%"
                 />
-              </ResponsiveContainer>
+              </div>
             </GlassCard>
             
             <GlassCard className="p-5" hoverable>

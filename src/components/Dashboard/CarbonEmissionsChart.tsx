@@ -102,8 +102,8 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
         </div>
 
         <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            {chartType === 'stacked' && (
+          {chartType === 'stacked' && (
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
@@ -117,8 +117,10 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                 <Bar dataKey="scope2" name="Scope 2 (Indirect)" stackId="a" fill="#FF9F0A" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="scope3" name="Scope 3 (Value Chain)" stackId="a" fill="#30D158" radius={[4, 4, 0, 0]} />
               </BarChart>
-            )}
-            {chartType === 'line' && (
+            </ResponsiveContainer>
+          )}
+          {chartType === 'line' && (
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
@@ -133,8 +135,10 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                 <Line type="monotone" dataKey="scope3" name="Scope 3 (Value Chain)" stroke="#30D158" strokeWidth={2} dot={{ r: 4 }} />
                 <Line type="monotone" dataKey="total" name="Total Emissions" stroke="#0A84FF" strokeWidth={2} dot={{ r: 4 }} />
               </LineChart>
-            )}
-            {chartType === 'area' && (
+            </ResponsiveContainer>
+          )}
+          {chartType === 'area' && (
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
@@ -148,8 +152,10 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                 <Area type="monotone" dataKey="scope2" name="Scope 2 (Indirect)" stackId="1" stroke="#FF9F0A" fill="#FF9F0A" />
                 <Area type="monotone" dataKey="scope3" name="Scope 3 (Value Chain)" stackId="1" stroke="#30D158" fill="#30D158" />
               </AreaChart>
-            )}
-            {chartType === 'pie' && (
+            </ResponsiveContainer>
+          )}
+          {chartType === 'pie' && (
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={pieData}
@@ -167,8 +173,8 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                 </Pie>
                 <Tooltip formatter={(value) => [`${value.toLocaleString()} tCO2e`, '']} />
               </PieChart>
-            )}
-          </ResponsiveContainer>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
     </GlassCard>
