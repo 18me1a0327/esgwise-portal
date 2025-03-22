@@ -13,7 +13,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  LabelList,
 } from "recharts";
 import GlassCard from "@/components/ui/GlassCard";
 
@@ -128,7 +127,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="period" 
+                  dataKey="date" 
                   tickFormatter={formatXAxisTick}
                 />
                 <YAxis />
@@ -140,9 +139,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                     dataKey={key} 
                     fill={colors[index % colors.length]} 
                     radius={[4, 4, 0, 0]} 
-                  >
-                    <LabelList dataKey={key} position="top" formatter={(value: number) => value ? value.toLocaleString() : ''} />
-                  </Bar>
+                  />
                 ))}
               </BarChart>
             </ResponsiveContainer>
@@ -152,7 +149,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="period" 
+                  dataKey="date" 
                   tickFormatter={formatXAxisTick}
                 />
                 <YAxis />
@@ -166,9 +163,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                     stroke={colors[index % colors.length]} 
                     strokeWidth={2} 
                     dot={{ r: 4 }} 
-                  >
-                    <LabelList dataKey={key} position="top" formatter={(value: number) => value ? value.toLocaleString() : ''} />
-                  </Line>
+                  />
                 ))}
               </LineChart>
             </ResponsiveContainer>
@@ -178,7 +173,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
               <AreaChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="period" 
+                  dataKey="date" 
                   tickFormatter={formatXAxisTick}
                 />
                 <YAxis />
@@ -192,9 +187,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                     fill={colors[index % colors.length]} 
                     stroke={colors[index % colors.length]} 
                     fillOpacity={0.6} 
-                  >
-                    <LabelList dataKey={key} position="top" formatter={(value: number) => value ? value.toLocaleString() : ''} />
-                  </Area>
+                  />
                 ))}
               </AreaChart>
             </ResponsiveContainer>

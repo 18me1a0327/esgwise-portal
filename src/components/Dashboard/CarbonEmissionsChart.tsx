@@ -127,7 +127,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   fill="#FF453A" 
                   radius={[4, 4, 0, 0]} 
                   isAnimationActive={false}
-                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
                 />
                 <Bar 
                   dataKey="scope2" 
@@ -136,7 +135,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   fill="#FF9F0A" 
                   radius={[4, 4, 0, 0]}
                   isAnimationActive={false}
-                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
                 />
                 <Bar 
                   dataKey="scope3" 
@@ -145,7 +143,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   fill="#30D158" 
                   radius={[4, 4, 0, 0]}
                   isAnimationActive={false}
-                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -172,7 +169,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   strokeWidth={2} 
                   dot={{ r: 4 }} 
                   isAnimationActive={false}
-                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
                 />
                 <Line 
                   type="monotone" 
@@ -182,7 +178,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   strokeWidth={2} 
                   dot={{ r: 4 }} 
                   isAnimationActive={false}
-                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
                 />
                 <Line 
                   type="monotone" 
@@ -192,7 +187,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   strokeWidth={2} 
                   dot={{ r: 4 }} 
                   isAnimationActive={false}
-                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
                 />
                 <Line 
                   type="monotone" 
@@ -202,7 +196,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   strokeWidth={2} 
                   dot={{ r: 4 }} 
                   isAnimationActive={false}
-                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -229,7 +222,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   stroke="#FF453A" 
                   fill="#FF453A"
                   isAnimationActive={false}
-                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
                 />
                 <Area 
                   type="monotone" 
@@ -239,7 +231,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   stroke="#FF9F0A" 
                   fill="#FF9F0A"
                   isAnimationActive={false}
-                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
                 />
                 <Area 
                   type="monotone" 
@@ -249,7 +240,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   stroke="#30D158" 
                   fill="#30D158"
                   isAnimationActive={false}
-                  label={{ position: 'top', formatter: (value: number) => value ? value.toLocaleString() : '' }}
                 />
               </AreaChart>
             </ResponsiveContainer>

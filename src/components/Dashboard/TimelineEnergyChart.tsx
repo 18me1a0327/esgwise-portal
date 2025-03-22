@@ -66,6 +66,18 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
     { name: 'Non-Renewable Electricity', value: totalElectricity - totalRenewable },
   ];
 
+  // Format date to show as MMM'YY (e.g., Jan'24)
+  const formatXAxisTick = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      const month = date.toLocaleString('default', { month: 'short' });
+      const year = date.getFullYear().toString().slice(2);
+      return `${month}'${year}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   return (
     <GlassCard className="p-5" hoverable>
       <div className="flex flex-col space-y-4">
@@ -109,10 +121,13 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
+                <XAxis 
+                  dataKey="date"
+                  tickFormatter={formatXAxisTick}
+                />
                 <YAxis yAxisId="left" orientation="left" stroke="#666" />
                 <YAxis yAxisId="right" orientation="right" stroke="#0A84FF" />
-                <Tooltip />
+                <Tooltip formatter={(value) => [value.toLocaleString(), '']} />
                 <Legend />
                 <Bar yAxisId="left" dataKey="totalElectricity" name="Total Electricity" fill="#0A84FF" radius={[4, 4, 0, 0]} />
                 <Bar yAxisId="left" dataKey="renewableEnergy" name="Renewable Energy" fill="#30D158" radius={[4, 4, 0, 0]} />
@@ -125,7 +140,10 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={renewableData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
+                <XAxis 
+                  dataKey="date"
+                  tickFormatter={formatXAxisTick}
+                />
                 <YAxis domain={[0, 100]} />
                 <Tooltip formatter={(value, name) => {
                   if (name === 'renewablePercentage') {
