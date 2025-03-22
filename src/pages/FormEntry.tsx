@@ -91,6 +91,61 @@ type SocialData = z.infer<typeof socialSchema>;
 type GovernanceData = z.infer<typeof governanceSchema>;
 type ESGFormData = z.infer<typeof esgFormSchema>;
 
+// Define explicit types for API responses
+interface EnvironmentalDataResponse {
+  total_electricity?: number;
+  renewable_ppa?: number;
+  renewable_rooftop?: number;
+  coal_consumption?: number;
+  hsd_consumption?: number;
+  furnace_oil_consumption?: number;
+  petrol_consumption?: number;
+  nox?: number;
+  sox?: number;
+  pm?: number;
+  water_withdrawal?: number;
+  third_party_water?: number;
+  rainwater?: number;
+  total_waste?: number;
+  total_hazardous?: number;
+  non_hazardous?: number;
+}
+
+interface SocialDataResponse {
+  total_employees?: number;
+  male_employees?: number;
+  female_employees?: number;
+  new_hires?: number;
+  attrition?: number;
+  health_insurance?: number;
+  accident_insurance?: number;
+  parental_benefits?: number;
+  pf_coverage?: number;
+}
+
+interface GovernanceDataResponse {
+  board_members?: number;
+  women_percentage?: number;
+  board_under30?: number;
+  board_30to50?: number;
+  board_above50?: number;
+  cybersecurity_incidents?: number;
+  corruption_incidents?: number;
+  legal_fines?: number;
+}
+
+interface SubmissionResponse {
+  site_id?: string;
+  review_comment?: string;
+}
+
+interface SubmissionDetails {
+  submission?: SubmissionResponse;
+  environmentalData?: EnvironmentalDataResponse;
+  socialData?: SocialDataResponse;
+  governanceData?: GovernanceDataResponse;
+}
+
 const FormEntry = () => {
   const [activeTab, setActiveTab] = useState("environmental");
   const { id } = useParams<{ id: string }>();
@@ -162,10 +217,10 @@ const FormEntry = () => {
 
   useEffect(() => {
     if (submissionDetails) {
-      // Extract the data correctly based on the API response structure
-      const envData = submissionDetails.environmentalData || {};
-      const socData = submissionDetails.socialData || {};
-      const govData = submissionDetails.governanceData || {};
+      // Create type-safe objects with default values for form reset
+      const envData: EnvironmentalDataResponse = submissionDetails.environmentalData || {};
+      const socData: SocialDataResponse = submissionDetails.socialData || {};
+      const govData: GovernanceDataResponse = submissionDetails.governanceData || {};
       
       form.reset({
         site_id: submissionDetails.submission?.site_id || "",
