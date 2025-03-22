@@ -112,6 +112,66 @@ const GOVERNANCE_CATEGORIES = {
   ]
 };
 
+interface EnvironmentalData {
+  total_electricity?: number;
+  renewable_ppa?: number;
+  renewable_rooftop?: number;
+  coal_consumption?: number;
+  hsd_consumption?: number;
+  furnace_oil_consumption?: number;
+  petrol_consumption?: number;
+  nox?: number;
+  sox?: number;
+  pm?: number;
+  water_withdrawal?: number;
+  third_party_water?: number;
+  rainwater?: number;
+  total_waste?: number;
+  total_hazardous?: number;
+  non_hazardous?: number;
+  [key: string]: number | undefined;
+}
+
+interface SocialData {
+  total_employees?: number;
+  male_employees?: number;
+  female_employees?: number;
+  new_hires?: number;
+  attrition?: number;
+  health_insurance?: number;
+  accident_insurance?: number;
+  parental_benefits?: number;
+  pf_coverage?: number;
+  [key: string]: number | undefined;
+}
+
+interface GovernanceData {
+  board_members?: number;
+  women_percentage?: number;
+  board_under30?: number;
+  board_30to50?: number;
+  board_above50?: number;
+  cybersecurity_incidents?: number;
+  corruption_incidents?: number;
+  legal_fines?: number;
+  [key: string]: number | undefined;
+}
+
+interface SubmissionDetails {
+  submission: {
+    id: string;
+    site_id: string;
+    period_start: string;
+    period_end: string;
+    submitted_by: string;
+    status: string;
+    created_at: string;
+  };
+  environmentalData: EnvironmentalData;
+  socialData: SocialData;
+  governanceData: GovernanceData;
+}
+
 const FormEntry = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -127,9 +187,9 @@ const FormEntry = () => {
   const [activeTab, setActiveTab] = useState("environmental");
   const [selectedCategory, setSelectedCategory] = useState<string>("Energy Consumption");
   const [formData, setFormData] = useState({
-    environmental: {} as Record<string, number>,
-    social: {} as Record<string, number>,
-    governance: {} as Record<string, number>
+    environmental: {} as EnvironmentalData,
+    social: {} as SocialData,
+    governance: {} as GovernanceData
   });
 
   const { data: sites, isLoading: isSitesLoading } = useQuery({
@@ -192,15 +252,13 @@ const FormEntry = () => {
       }
     },
     onSuccess: (data, variables) => {
-      if (variables) {
-        toast({
-          title: variables ? "Draft saved successfully!" : "ESG data submitted for approval",
-          description: variables ? "You can continue editing later." : "Your data has been submitted and is pending approval.",
-          duration: 5000,
-        });
-        if (!variables) {
-          navigate("/approvals");
-        }
+      toast({
+        title: variables ? "Draft saved successfully!" : "ESG data submitted for approval",
+        description: variables ? "You can continue editing later." : "Your data has been submitted and is pending approval.",
+        duration: 5000,
+      });
+      if (!variables) {
+        navigate("/approvals");
       }
     },
     onError: (error) => {
@@ -247,9 +305,9 @@ const FormEntry = () => {
       setSubmitterName(submission.submitted_by);
       
       setFormData({
-        environmental: { ...(environmentalData || {}) },
-        social: { ...(socialData || {}) },
-        governance: { ...(governanceData || {}) }
+        environmental: environmentalData || {},
+        social: socialData || {},
+        governance: governanceData || {}
       });
     }
   }, [isEditMode, submissionDetails]);
@@ -420,7 +478,7 @@ const FormEntry = () => {
                     <SelectValue placeholder="Select site location" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sites?.map(site => (
+                    {sites && sites.map(site => (
                       <SelectItem key={site.id} value={site.id}>
                         {site.name}
                       </SelectItem>

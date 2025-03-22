@@ -14,17 +14,24 @@ import PageTransition from "./components/Layout/PageTransition";
 // Pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import FormEntry from "./pages/FormEntry"; // Import FormEntry directly instead of lazy loading
 
 // Lazy loaded pages for better performance
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const FormEntry = lazy(() => import("./pages/FormEntry"));
 const ApprovalQueue = lazy(() => import("./pages/ApprovalQueue"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Sites = lazy(() => import("./pages/Sites"));
 const EmissionFactors = lazy(() => import("./pages/EmissionFactors"));
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
