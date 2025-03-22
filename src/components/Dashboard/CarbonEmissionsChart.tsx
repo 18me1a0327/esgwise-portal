@@ -17,13 +17,11 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GlassCard from "@/components/ui/GlassCard";
 
 type CarbonEmissionsData = {
-  name: string;
   date: string;
-  period: string;
+  displayDate: string;
   scope1: number;
   scope2: number;
   scope3: number;
@@ -52,18 +50,6 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
     { name: 'Scope 2 (Indirect)', value: data.reduce((sum, item) => sum + item.scope2, 0) },
     { name: 'Scope 3 (Value Chain)', value: data.reduce((sum, item) => sum + item.scope3, 0) },
   ];
-
-  // Format date to show as MMM'YY (e.g., Jan'25)
-  const formatXAxisTick = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      const month = date.toLocaleString('default', { month: 'short' });
-      const year = date.getFullYear().toString().slice(2);
-      return `${month}'${year}`;
-    } catch (e) {
-      return dateStr;
-    }
-  };
 
   return (
     <GlassCard className="p-5" hoverable>
@@ -111,13 +97,11 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatXAxisTick}
+                  dataKey="displayDate" 
                 />
                 <YAxis />
                 <Tooltip 
                   formatter={(value) => [`${value.toLocaleString()} tCO2e`, '']}
-                  labelFormatter={(label) => `${formatXAxisTick(label)}`}
                 />
                 <Legend />
                 <Bar 
@@ -127,6 +111,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   fill="#FF453A" 
                   radius={[4, 4, 0, 0]} 
                   isAnimationActive={false}
+                  label={false}
                 />
                 <Bar 
                   dataKey="scope2" 
@@ -135,6 +120,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   fill="#FF9F0A" 
                   radius={[4, 4, 0, 0]}
                   isAnimationActive={false}
+                  label={false}
                 />
                 <Bar 
                   dataKey="scope3" 
@@ -143,6 +129,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   fill="#30D158" 
                   radius={[4, 4, 0, 0]}
                   isAnimationActive={false}
+                  label={false}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -152,13 +139,11 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatXAxisTick}
+                  dataKey="displayDate" 
                 />
                 <YAxis />
                 <Tooltip 
                   formatter={(value) => [`${value.toLocaleString()} tCO2e`, '']}
-                  labelFormatter={(label) => `${formatXAxisTick(label)}`}
                 />
                 <Legend />
                 <Line 
@@ -169,6 +154,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   strokeWidth={2} 
                   dot={{ r: 4 }} 
                   isAnimationActive={false}
+                  label={false}
                 />
                 <Line 
                   type="monotone" 
@@ -178,6 +164,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   strokeWidth={2} 
                   dot={{ r: 4 }} 
                   isAnimationActive={false}
+                  label={false}
                 />
                 <Line 
                   type="monotone" 
@@ -187,6 +174,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   strokeWidth={2} 
                   dot={{ r: 4 }} 
                   isAnimationActive={false}
+                  label={false}
                 />
                 <Line 
                   type="monotone" 
@@ -196,6 +184,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   strokeWidth={2} 
                   dot={{ r: 4 }} 
                   isAnimationActive={false}
+                  label={false}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -205,13 +194,11 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
               <AreaChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatXAxisTick}
+                  dataKey="displayDate" 
                 />
                 <YAxis />
                 <Tooltip 
                   formatter={(value) => [`${value.toLocaleString()} tCO2e`, '']}
-                  labelFormatter={(label) => `${formatXAxisTick(label)}`}
                 />
                 <Legend />
                 <Area 
@@ -222,6 +209,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   stroke="#FF453A" 
                   fill="#FF453A"
                   isAnimationActive={false}
+                  label={false}
                 />
                 <Area 
                   type="monotone" 
@@ -231,6 +219,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   stroke="#FF9F0A" 
                   fill="#FF9F0A"
                   isAnimationActive={false}
+                  label={false}
                 />
                 <Area 
                   type="monotone" 
@@ -240,6 +229,7 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   stroke="#30D158" 
                   fill="#30D158"
                   isAnimationActive={false}
+                  label={false}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -255,14 +245,15 @@ const CarbonEmissionsChart: React.FC<CarbonEmissionsChartProps> = ({ data }) => 
                   outerRadius={120}
                   fill="#8884d8"
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   isAnimationActive={false}
+                  label={false}
                 >
                   {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => [`${value.toLocaleString()} tCO2e`, '']} />
+                <Legend />
               </PieChart>
             </ResponsiveContainer>
           )}

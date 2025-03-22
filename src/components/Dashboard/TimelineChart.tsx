@@ -17,9 +17,8 @@ import {
 import GlassCard from "@/components/ui/GlassCard";
 
 type TimelineData = {
-  name: string;
   date: string;
-  period: string;
+  displayDate: string;
   [key: string]: any;
 };
 
@@ -66,18 +65,6 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
       return `${value.toLocaleString()} ${unit}`;
     }
     return value.toLocaleString();
-  };
-
-  // Format date to show as MMM'YY (e.g., Jan'24)
-  const formatXAxisTick = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      const month = date.toLocaleString('default', { month: 'short' });
-      const year = date.getFullYear().toString().slice(2);
-      return `${month}'${year}`;
-    } catch (e) {
-      return dateStr;
-    }
   };
 
   return (
@@ -127,8 +114,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatXAxisTick}
+                  dataKey="displayDate" 
                 />
                 <YAxis />
                 <Tooltip formatter={(value) => [formatTooltipValue(Number(value)), '']} />
@@ -139,6 +125,8 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                     dataKey={key} 
                     fill={colors[index % colors.length]} 
                     radius={[4, 4, 0, 0]} 
+                    isAnimationActive={false}
+                    label={false}
                   />
                 ))}
               </BarChart>
@@ -149,8 +137,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatXAxisTick}
+                  dataKey="displayDate" 
                 />
                 <YAxis />
                 <Tooltip formatter={(value) => [formatTooltipValue(Number(value)), '']} />
@@ -163,6 +150,8 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                     stroke={colors[index % colors.length]} 
                     strokeWidth={2} 
                     dot={{ r: 4 }} 
+                    isAnimationActive={false}
+                    label={false}
                   />
                 ))}
               </LineChart>
@@ -173,8 +162,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
               <AreaChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatXAxisTick}
+                  dataKey="displayDate" 
                 />
                 <YAxis />
                 <Tooltip formatter={(value) => [formatTooltipValue(Number(value)), '']} />
@@ -187,6 +175,8 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                     fill={colors[index % colors.length]} 
                     stroke={colors[index % colors.length]} 
                     fillOpacity={0.6} 
+                    isAnimationActive={false}
+                    label={false}
                   />
                 ))}
               </AreaChart>

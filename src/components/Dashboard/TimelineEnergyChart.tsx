@@ -14,13 +14,11 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GlassCard from "@/components/ui/GlassCard";
 
 type EnergyData = {
-  name: string;
   date: string;
-  period: string;
+  displayDate: string;
   totalElectricity: number;
   renewableEnergy: number;
   coal: number;
@@ -66,18 +64,6 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
     { name: 'Non-Renewable Electricity', value: totalElectricity - totalRenewable },
   ];
 
-  // Format date to show as MMM'YY (e.g., Jan'24)
-  const formatXAxisTick = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      const month = date.toLocaleString('default', { month: 'short' });
-      const year = date.getFullYear().toString().slice(2);
-      return `${month}'${year}`;
-    } catch (e) {
-      return dateStr;
-    }
-  };
-
   return (
     <GlassCard className="p-5" hoverable>
       <div className="flex flex-col space-y-4">
@@ -122,18 +108,17 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
               <ComposedChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="date"
-                  tickFormatter={formatXAxisTick}
+                  dataKey="displayDate"
                 />
                 <YAxis yAxisId="left" orientation="left" stroke="#666" />
                 <YAxis yAxisId="right" orientation="right" stroke="#0A84FF" />
                 <Tooltip formatter={(value) => [value.toLocaleString(), '']} />
                 <Legend />
-                <Bar yAxisId="left" dataKey="totalElectricity" name="Total Electricity" fill="#0A84FF" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="left" dataKey="renewableEnergy" name="Renewable Energy" fill="#30D158" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="left" dataKey="coal" name="Coal" fill="#FF9F0A" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="left" dataKey="fossilFuels" name="Fossil Fuels" fill="#FF453A" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="right" type="monotone" dataKey="renewableEnergy" name="Renewable Trend" stroke="#22C55E" strokeWidth={2} dot={{ stroke: '#22C55E', strokeWidth: 2, r: 4 }} />
+                <Bar yAxisId="left" dataKey="totalElectricity" name="Total Electricity" fill="#0A84FF" radius={[4, 4, 0, 0]} isAnimationActive={false} label={false} />
+                <Bar yAxisId="left" dataKey="renewableEnergy" name="Renewable Energy" fill="#30D158" radius={[4, 4, 0, 0]} isAnimationActive={false} label={false} />
+                <Bar yAxisId="left" dataKey="coal" name="Coal" fill="#FF9F0A" radius={[4, 4, 0, 0]} isAnimationActive={false} label={false} />
+                <Bar yAxisId="left" dataKey="fossilFuels" name="Fossil Fuels" fill="#FF453A" radius={[4, 4, 0, 0]} isAnimationActive={false} label={false} />
+                <Line yAxisId="right" type="monotone" dataKey="renewableEnergy" name="Renewable Trend" stroke="#22C55E" strokeWidth={2} dot={{ stroke: '#22C55E', strokeWidth: 2, r: 4 }} isAnimationActive={false} label={false} />
               </ComposedChart>
             </ResponsiveContainer>
           ) : (
@@ -141,8 +126,7 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
               <ComposedChart data={renewableData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="date"
-                  tickFormatter={formatXAxisTick}
+                  dataKey="displayDate"
                 />
                 <YAxis domain={[0, 100]} />
                 <Tooltip formatter={(value, name) => {
@@ -152,8 +136,8 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
                   return [`${typeof value === 'number' ? value.toLocaleString() : value} kWh`, name];
                 }} />
                 <Legend />
-                <Bar dataKey="totalElectricity" name="Total Electricity" fill="#0A84FF" radius={[4, 4, 0, 0]} fillOpacity={0.3} />
-                <Line type="monotone" dataKey="renewablePercentage" name="Renewable %" stroke="#22C55E" strokeWidth={3} dot={{ stroke: '#22C55E', strokeWidth: 2, r: 4 }} />
+                <Bar dataKey="totalElectricity" name="Total Electricity" fill="#0A84FF" radius={[4, 4, 0, 0]} fillOpacity={0.3} isAnimationActive={false} label={false} />
+                <Line type="monotone" dataKey="renewablePercentage" name="Renewable %" stroke="#22C55E" strokeWidth={3} dot={{ stroke: '#22C55E', strokeWidth: 2, r: 4 }} isAnimationActive={false} label={false} />
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -174,6 +158,8 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
                     fill="#8884d8"
                     paddingAngle={5}
                     dataKey="value"
+                    isAnimationActive={false}
+                    label={false}
                   >
                     {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
