@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export const fetchDashboardData = async () => {
@@ -99,9 +100,11 @@ export const fetchDashboardData = async () => {
     ? (renewableElectricity / totalElectricity) * 100 
     : 0;
 
-  // Prepare data for charts
+  // Prepare data for charts - with time-based information
   const energyData = environmentalData?.map(item => ({
     name: item.submission.sites?.name || 'Unknown Site',
+    date: item.submission.period_end || '',
+    period: `${new Date(item.submission.period_start).toLocaleDateString()} - ${new Date(item.submission.period_end).toLocaleDateString()}`,
     totalElectricity: Number(item.total_electricity) || 0,
     renewableEnergy: (Number(item.renewable_ppa) || 0) + (Number(item.renewable_rooftop) || 0),
     coal: Number(item.coal_consumption) || 0,
@@ -110,31 +113,67 @@ export const fetchDashboardData = async () => {
                 (Number(item.petrol_consumption) || 0)
   }));
 
+  // Calculate carbon emissions by scope
+  const carbonEmissionsData = environmentalData?.map(item => {
+    // Scope 1: Direct emissions from owned or controlled sources
+    const scope1 = (Number(item.coal_emissions) || 0) + 
+                  (Number(item.hsd_emissions) || 0) + 
+                  (Number(item.furnace_oil_emissions) || 0) + 
+                  (Number(item.petrol_emissions) || 0);
+    
+    // Scope 2: Indirect emissions from purchased electricity
+    const scope2 = Number(item.electricity_emissions) || 0;
+    
+    // Scope 3: All other indirect emissions (estimated as 20% of scope 1+2 for this example)
+    const scope3 = (scope1 + scope2) * 0.2;
+    
+    return {
+      name: item.submission.sites?.name || 'Unknown Site',
+      date: item.submission.period_end || '',
+      period: `${new Date(item.submission.period_start).toLocaleDateString()} - ${new Date(item.submission.period_end).toLocaleDateString()}`,
+      scope1,
+      scope2,
+      scope3,
+      total: scope1 + scope2 + scope3
+    };
+  });
+
+  // Sort all data chronologically for time-based charts
+  carbonEmissionsData?.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  energyData?.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
   const emissionsData = environmentalData?.map(item => ({
     name: item.submission.sites?.name || 'Unknown Site',
+    date: item.submission.period_end || '',
+    period: `${new Date(item.submission.period_start).toLocaleDateString()} - ${new Date(item.submission.period_end).toLocaleDateString()}`,
     NOx: Number(item.nox) || 0,
     SOx: Number(item.sox) || 0,
     PM: Number(item.pm) || 0,
     Others: (Number(item.pop) || 0) + (Number(item.voc) || 0) + (Number(item.hap) || 0)
-  }));
+  })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   
   const waterData = environmentalData?.map(item => ({
     name: item.submission.sites?.name || 'Unknown Site',
+    date: item.submission.period_end || '',
+    period: `${new Date(item.submission.period_start).toLocaleDateString()} - ${new Date(item.submission.period_end).toLocaleDateString()}`,
     Withdrawal: Number(item.water_withdrawal) || 0,
     ThirdParty: Number(item.third_party_water) || 0,
     Rainwater: Number(item.rainwater) || 0,
     Recycled: Number(item.recycled_wastewater) || 0,
     Discharged: Number(item.water_discharged) || 0
-  }));
+  })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   
-  const wasteData = environmentalData?.map(item => [
-    { name: 'Hazardous', value: Number(item.total_hazardous) || 0 },
-    { name: 'Non-hazardous', value: Number(item.non_hazardous) || 0 },
-    { name: 'Plastic', value: Number(item.plastic_waste) || 0 },
-    { name: 'E-waste', value: Number(item.e_waste) || 0 },
-    { name: 'Bio-medical', value: Number(item.bio_medical) || 0 },
-    { name: 'Waste oil', value: Number(item.waste_oil) || 0 }
-  ]).flat() || [];
+  const wasteData = environmentalData?.map(item => ({
+    name: item.submission.sites?.name || 'Unknown Site',
+    date: item.submission.period_end || '',
+    period: `${new Date(item.submission.period_start).toLocaleDateString()} - ${new Date(item.submission.period_end).toLocaleDateString()}`,
+    Hazardous: Number(item.total_hazardous) || 0,
+    NonHazardous: Number(item.non_hazardous) || 0,
+    Plastic: Number(item.plastic_waste) || 0,
+    EWaste: Number(item.e_waste) || 0,
+    BioMedical: Number(item.bio_medical) || 0,
+    WasteOil: Number(item.waste_oil) || 0
+  })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   // Fetch statistics by site
   const siteStats = submissions?.map(submission => {
@@ -166,7 +205,8 @@ export const fetchDashboardData = async () => {
       energyData: energyData?.length,
       emissionsData: emissionsData?.length,
       waterData: waterData?.length,
-      wasteData: wasteData?.length
+      wasteData: wasteData?.length,
+      carbonEmissionsData: carbonEmissionsData?.length
     }
   });
 
@@ -179,7 +219,8 @@ export const fetchDashboardData = async () => {
       energyData: energyData || [],
       emissionsData: emissionsData || [],
       waterData: waterData || [],
-      wasteData: wasteData || []
+      wasteData: wasteData || [],
+      carbonEmissionsData: carbonEmissionsData || []
     },
     environmentalData,
     socialData,

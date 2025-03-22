@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { 
   BarChart3Icon, 
@@ -13,9 +14,12 @@ import { useQuery } from "@tanstack/react-query";
 import GlassCard from "@/components/ui/GlassCard";
 import DashboardCard from "@/components/Dashboard/DashboardCard";
 import ProgressRing from "@/components/Dashboard/ProgressRing";
+import CarbonEmissionsChart from "@/components/Dashboard/CarbonEmissionsChart";
+import TimelineEnergyChart from "@/components/Dashboard/TimelineEnergyChart";
+import TimelineChart from "@/components/Dashboard/TimelineChart";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { PieChart, Pie, Cell } from "recharts";
 import { fetchDashboardData } from "@/services/dashboardService";
 import { fetchSites } from "@/services/siteService";
 
@@ -34,6 +38,8 @@ const Dashboard = () => {
   });
 
   const COLORS = ['#0A84FF', '#30D158', '#FF9F0A', '#FF453A', '#BF5AF2', '#5E5CE6'];
+  const WATER_COLORS = ['#0A84FF', '#64D2FF', '#5E5CE6', '#30D158', '#BF5AF2'];
+  const WASTE_COLORS = ['#FF453A', '#FF9F0A', '#FFD60A', '#5E5CE6', '#BF5AF2', '#32D74B'];
 
   const container = {
     hidden: { opacity: 0 },
@@ -62,14 +68,8 @@ const Dashboard = () => {
   const energyData = dashboardData?.chartData?.energyData || [];
   const emissionsData = dashboardData?.chartData?.emissionsData || [];
   const waterData = dashboardData?.chartData?.waterData || [];
-  const wasteData = dashboardData?.environmentalData?.map(item => [
-    { name: 'Hazardous', value: Number(item.total_hazardous) || 0 },
-    { name: 'Non-hazardous', value: Number(item.non_hazardous) || 0 },
-    { name: 'Plastic', value: Number(item.plastic_waste) || 0 },
-    { name: 'E-waste', value: Number(item.e_waste) || 0 },
-    { name: 'Bio-medical', value: Number(item.bio_medical) || 0 },
-    { name: 'Waste oil', value: Number(item.waste_oil) || 0 },
-  ]).flat() || [];
+  const wasteData = dashboardData?.chartData?.wasteData || [];
+  const carbonEmissionsData = dashboardData?.chartData?.carbonEmissionsData || [];
 
   const employeeData = dashboardData?.socialData?.map(item => [
     { name: 'Male Employees', value: Number(item.male_employees) || 0 },
@@ -181,106 +181,42 @@ const Dashboard = () => {
         
         <motion.div variants={item} className="mb-8">
           <h2 className="text-lg font-semibold mb-4">Environmental Metrics</h2>
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <CarbonEmissionsChart data={carbonEmissionsData} />
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <TimelineEnergyChart data={energyData} />
+          </div>
+          
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <GlassCard className="p-5" hoverable>
-              <h3 className="text-base font-medium mb-4">Energy Consumption</h3>
-              {energyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={energyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="totalElectricity" name="Electricity" fill="#0A84FF" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="renewableEnergy" name="Renewable" fill="#30D158" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="coal" name="Coal" fill="#FF9F0A" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="fossilFuels" name="Fossil Fuels" fill="#FF453A" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[300px] text-gray-400">
-                  No energy consumption data available
-                </div>
-              )}
-            </GlassCard>
+            <TimelineChart 
+              title="Air Emissions (MT)"
+              data={emissionsData}
+              dataKeys={["NOx", "SOx", "PM", "Others"]}
+              colors={["#FF453A", "#FF9F0A", "#5E5CE6", "#BF5AF2"]}
+              chartType="line"
+              unit="MT"
+            />
             
-            <GlassCard className="p-5" hoverable>
-              <h3 className="text-base font-medium mb-4">Air Emissions (MT)</h3>
-              {emissionsData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={emissionsData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="NOx" name="NOx" fill="#FF453A" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="SOx" name="SOx" fill="#FF9F0A" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="PM" name="PM" fill="#5E5CE6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Others" name="Others" fill="#BF5AF2" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[300px] text-gray-400">
-                  No air emissions data available
-                </div>
-              )}
-            </GlassCard>
+            <TimelineChart 
+              title="Water Management (KL)"
+              subtitle="Water withdrawal and discharge over time"
+              data={waterData}
+              dataKeys={["Withdrawal", "ThirdParty", "Rainwater", "Recycled", "Discharged"]}
+              colors={WATER_COLORS}
+              chartType="area"
+              unit="KL"
+            />
             
-            <GlassCard className="p-5" hoverable>
-              <h3 className="text-base font-medium mb-4">Water Management (KL)</h3>
-              {waterData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={waterData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="Withdrawal" fill="#5E5CE6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="ThirdParty" fill="#0A84FF" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Rainwater" fill="#30D158" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Recycled" fill="#FF9F0A" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Discharged" fill="#BF5AF2" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[300px] text-gray-400">
-                  No water management data available
-                </div>
-              )}
-            </GlassCard>
-            
-            <GlassCard className="p-5" hoverable>
-              <h3 className="text-base font-medium mb-4">Waste Management (MT)</h3>
-              {wasteData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={wasteData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {wasteData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[300px] text-gray-400">
-                  No waste management data available
-                </div>
-              )}
-            </GlassCard>
+            <TimelineChart 
+              title="Waste Management (MT)"
+              subtitle="Waste generation by category over time"
+              data={wasteData}
+              dataKeys={["Hazardous", "NonHazardous", "Plastic", "EWaste", "BioMedical", "WasteOil"]}
+              colors={WASTE_COLORS}
+              unit="MT"
+            />
           </div>
         </motion.div>
         
@@ -306,7 +242,6 @@ const Dashboard = () => {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend />
                 </PieChart>
               </ResponsiveContainer>
             </GlassCard>
@@ -314,13 +249,23 @@ const Dashboard = () => {
             <GlassCard className="p-5" hoverable>
               <h3 className="text-base font-medium mb-4">Employee Benefits Coverage (%)</h3>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={benefitsData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[0, 100]} />
-                  <YAxis dataKey="name" type="category" />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#BF5AF2" radius={[0, 4, 4, 0]} />
-                </BarChart>
+                <TimelineChart 
+                  title=""
+                  data={dashboardData?.socialData?.map(item => ({
+                    name: item.submission?.sites?.name || 'Unknown',
+                    period: `${new Date(item.submission?.period_start).toLocaleDateString()} - ${new Date(item.submission?.period_end).toLocaleDateString()}`,
+                    'Health Insurance': Number(item.health_insurance) || 0,
+                    'Accident Insurance': Number(item.accident_insurance) || 0,
+                    'Parental Benefits': Number(item.parental_benefits) || 0,
+                    'PF Coverage': Number(item.pf_coverage) || 0,
+                    'Gratuity': Number(item.gratuity_coverage) || 0,
+                    'ESI': Number(item.esi_coverage) || 0,
+                  })) || []}
+                  dataKeys={['Health Insurance', 'Accident Insurance', 'Parental Benefits', 'PF Coverage', 'Gratuity', 'ESI']}
+                  colors={COLORS}
+                  chartType="line"
+                  unit="%"
+                />
               </ResponsiveContainer>
             </GlassCard>
             
