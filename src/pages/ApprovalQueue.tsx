@@ -12,7 +12,8 @@ import {
   ThumbsDown, 
   ThumbsUp, 
   X,
-  Loader2
+  Loader2,
+  ExternalLink
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,9 +23,10 @@ import GlassCard from "@/components/ui/GlassCard";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchSubmissions, updateSubmissionStatus } from "@/services/esgSubmissionService";
+import { fetchSubmissions, updateSubmissionStatus, fetchSubmissionDetails } from "@/services/esgSubmissionService";
 import { ApprovalStatus } from "@/types/esg";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Submission = {
   id: string;
@@ -52,6 +54,17 @@ const ApprovalQueue = () => {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [activeViewTab, setActiveViewTab] = useState("environmental");
+
+  const { 
+    data: submissionDetails, 
+    isLoading: isDetailsLoading 
+  } = useQuery({
+    queryKey: ['submission-details', selectedSubmission?.id],
+    queryFn: () => selectedSubmission ? fetchSubmissionDetails(selectedSubmission.id) : null,
+    enabled: !!selectedSubmission && viewDialogOpen
+  });
 
   const { data: submissions = [], isLoading: isLoadingSubmissions } = useQuery({
     queryKey: ['submissions'],
@@ -135,6 +148,11 @@ const ApprovalQueue = () => {
     setRejectionDialogOpen(true);
   };
 
+  const handleOpenViewDialog = (submission: Submission) => {
+    setSelectedSubmission(submission);
+    setViewDialogOpen(true);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat("en-US", {
@@ -144,6 +162,11 @@ const ApprovalQueue = () => {
       hour: "2-digit",
       minute: "2-digit"
     }).format(date);
+  };
+
+  const formatValue = (value: any, unit: string = "") => {
+    if (value === null || value === undefined) return "-";
+    return `${typeof value === 'number' ? value.toLocaleString() : value}${unit ? ` ${unit}` : ''}`;
   };
 
   return (
@@ -327,7 +350,7 @@ const ApprovalQueue = () => {
                             variant="outline"
                             size="sm"
                             className="flex items-center gap-1"
-                            onClick={() => navigate(`/form/${submission.id}`)}
+                            onClick={() => handleOpenViewDialog(submission)}
                           >
                             <Eye size={14} />
                             View
@@ -380,6 +403,298 @@ const ApprovalQueue = () => {
           </div>
         )}
       </GlassCard>
+
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Submission Details</DialogTitle>
+            <DialogDescription>
+              {selectedSubmission && (
+                <div className="mt-2">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Site</p>
+                      <p className="font-medium">{selectedSubmission.site.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Submitted By</p>
+                      <p className="font-medium">{selectedSubmission.submitted_by}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Submitted Date</p>
+                      <p className="font-medium">{formatDate(selectedSubmission.submitted_at)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Status</p>
+                      <StatusBadge status={selectedSubmission.status} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isDetailsLoading ? (
+            <div className="flex justify-center items-center py-10">
+              <Loader2 size={30} className="animate-spin text-gray-400" />
+            </div>
+          ) : submissionDetails ? (
+            <div className="py-4">
+              <Tabs defaultValue="environmental" value={activeViewTab} onValueChange={setActiveViewTab}>
+                <TabsList className="w-full grid grid-cols-3">
+                  <TabsTrigger value="environmental">Environmental</TabsTrigger>
+                  <TabsTrigger value="social">Social</TabsTrigger>
+                  <TabsTrigger value="governance">Governance</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="environmental" className="mt-4">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Energy Consumption</h3>
+                      <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Total Electricity</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.total_electricity, "kWh")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Renewable Energy (PPA)</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.renewable_ppa, "kWh")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Renewable Energy (Rooftop)</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.renewable_rooftop, "kWh")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Coal Consumption</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.coal_consumption, "MT")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">HSD Consumption</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.hsd_consumption, "KL")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Furnace Oil Consumption</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.furnace_oil_consumption, "MT")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Petrol Consumption</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.petrol_consumption, "KL")}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Emissions</h3>
+                      <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Total Emissions</p>
+                          <p className="font-medium text-red-600">{formatValue(submissionDetails.environmentalData.total_emissions, "tCO2e")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Electricity Emissions</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.electricity_emissions, "tCO2e")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Coal Emissions</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.coal_emissions, "tCO2e")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">HSD Emissions</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.hsd_emissions, "tCO2e")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Furnace Oil Emissions</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.furnace_oil_emissions, "tCO2e")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Petrol Emissions</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.petrol_emissions, "tCO2e")}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Air Emissions</h3>
+                      <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
+                        <div>
+                          <p className="text-sm text-gray-500">NOx</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.nox, "MT")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">SOx</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.sox, "MT")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">PM</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.pm, "MT")}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Water Management</h3>
+                      <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Water Withdrawal</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.water_withdrawal, "KL")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Third-Party Water</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.third_party_water, "KL")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Rainwater Harvesting</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.rainwater, "KL")}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Waste Management</h3>
+                      <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Total Waste</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.total_waste, "MT")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Hazardous Waste</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.total_hazardous, "MT")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Non-Hazardous Waste</p>
+                          <p className="font-medium">{formatValue(submissionDetails.environmentalData.non_hazardous, "MT")}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="social" className="mt-4">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Employment & Workforce</h3>
+                      <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Total Employees</p>
+                          <p className="font-medium">{formatValue(submissionDetails.socialData.total_employees)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Male Employees</p>
+                          <p className="font-medium">{formatValue(submissionDetails.socialData.male_employees)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Female Employees</p>
+                          <p className="font-medium">{formatValue(submissionDetails.socialData.female_employees)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">New Hires</p>
+                          <p className="font-medium">{formatValue(submissionDetails.socialData.new_hires)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Attrition</p>
+                          <p className="font-medium">{formatValue(submissionDetails.socialData.attrition)}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Employee Benefits</h3>
+                      <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Health Insurance</p>
+                          <p className="font-medium">{formatValue(submissionDetails.socialData.health_insurance, "%")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Accident Insurance</p>
+                          <p className="font-medium">{formatValue(submissionDetails.socialData.accident_insurance, "%")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Parental Benefits</p>
+                          <p className="font-medium">{formatValue(submissionDetails.socialData.parental_benefits, "%")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">PF Coverage</p>
+                          <p className="font-medium">{formatValue(submissionDetails.socialData.pf_coverage, "%")}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="governance" className="mt-4">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Board Composition</h3>
+                      <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Board Members</p>
+                          <p className="font-medium">{formatValue(submissionDetails.governanceData.board_members)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Women on Board</p>
+                          <p className="font-medium">{formatValue(submissionDetails.governanceData.women_percentage, "%")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Board Members Under 30</p>
+                          <p className="font-medium">{formatValue(submissionDetails.governanceData.board_under30, "%")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Board Members 30-50</p>
+                          <p className="font-medium">{formatValue(submissionDetails.governanceData.board_30to50, "%")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Board Members Above 50</p>
+                          <p className="font-medium">{formatValue(submissionDetails.governanceData.board_above50, "%")}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Business Ethics & Cybersecurity</h3>
+                      <div className="bg-gray-50 p-4 rounded-md grid grid-cols-2 gap-x-6 gap-y-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Cybersecurity Incidents</p>
+                          <p className="font-medium">{formatValue(submissionDetails.governanceData.cybersecurity_incidents)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Corruption Incidents</p>
+                          <p className="font-medium">{formatValue(submissionDetails.governanceData.corruption_incidents)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Legal Fines</p>
+                          <p className="font-medium">{formatValue(submissionDetails.governanceData.legal_fines)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              No detailed data available
+            </div>
+          )}
+          
+          <DialogFooter className="sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setViewDialogOpen(false)}
+              className="mr-auto"
+            >
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/form/${selectedSubmission?.id}`)}
+              className="flex items-center gap-1"
+            >
+              <ExternalLink size={14} />
+              Open Full Form
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={rejectionDialogOpen} onOpenChange={setRejectionDialogOpen}>
         <DialogContent className="sm:max-w-md">

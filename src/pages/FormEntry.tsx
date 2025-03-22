@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,7 +11,8 @@ import {
   Send, 
   ArrowLeft,
   PlusCircle,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchSites } from "@/services/siteService";
 import { createSubmission, saveAsDraft, fetchSubmissionDetails } from "@/services/esgSubmissionService";
+import { useToast } from "@/hooks/use-toast";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -35,7 +36,6 @@ const YEARS = ["2022", "2023", "2024", "2025", "2026"];
 
 const REPORTING_SPANS = ["Monthly", "Quarterly", "Annually"];
 
-// Environmental categories
 const ENV_CATEGORIES = {
   "Energy Consumption": [
     { id: "total_electricity", label: "Total electricity consumption", unit: "kWh" },
@@ -76,7 +76,6 @@ const ENV_CATEGORIES = {
   ]
 };
 
-// Social categories
 const SOCIAL_CATEGORIES = {
   "Employment & Workforce": [
     { id: "total_employees", label: "Total Number of Employees", unit: "" },
@@ -97,7 +96,6 @@ const SOCIAL_CATEGORIES = {
   ]
 };
 
-// Governance categories
 const GOVERNANCE_CATEGORIES = {
   "Board Composition": [
     { id: "board_members", label: "Number of Board Members", unit: "" },
@@ -119,6 +117,7 @@ const FormEntry = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = !!id;
+  const { toast } = useToast();
 
   const [selectedSite, setSelectedSite] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
@@ -134,48 +133,39 @@ const FormEntry = () => {
     governance: {} as Record<string, number>
   });
 
-  // Fetch sites data
   const { data: sites, isLoading: isSitesLoading } = useQuery({
     queryKey: ['sites'],
     queryFn: fetchSites
   });
 
-  // Fetch submission details if in edit mode
   const { data: submissionDetails, isLoading: isSubmissionLoading } = useQuery({
     queryKey: ['submission', id],
     queryFn: () => fetchSubmissionDetails(id as string),
     enabled: isEditMode
   });
 
-  // Submit mutation
   const submitMutation = useMutation({
     mutationFn: (isDraft: boolean) => {
-      // Calculate period start and end dates based on month/year selection
       let periodStart, periodEnd;
       
       const year = parseInt(selectedYear);
       const monthIndex = MONTHS.indexOf(selectedMonth);
       
       if (reportingSpan === "Monthly" && monthIndex !== -1) {
-        // For monthly reporting
         periodStart = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-01`;
         
-        // Calculate the last day of the month
         const lastDay = new Date(year, monthIndex + 1, 0).getDate();
         periodEnd = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-${lastDay}`;
       } else if (reportingSpan === "Quarterly") {
-        // For quarterly reporting
         const quarter = Math.floor(monthIndex / 3);
         const startMonth = quarter * 3 + 1;
         const endMonth = startMonth + 2;
         
         periodStart = `${year}-${startMonth.toString().padStart(2, '0')}-01`;
         
-        // Last day of the last month in the quarter
         const lastDay = new Date(year, endMonth, 0).getDate();
         periodEnd = `${year}-${endMonth.toString().padStart(2, '0')}-${lastDay}`;
       } else {
-        // Default to annual reporting (full year)
         periodStart = `${year}-01-01`;
         periodEnd = `${year}-12-31`;
       }
@@ -204,30 +194,44 @@ const FormEntry = () => {
     },
     onSuccess: (data, variables) => {
       if (variables) {
-        toast.success(variables ? "Draft saved successfully!" : "ESG data submitted for approval successfully!");
+        toast({
+          title: variables ? "Draft saved successfully!" : "ESG data submitted for approval",
+          description: variables ? "You can continue editing later." : "Your data has been submitted and is pending approval.",
+          duration: 5000,
+        });
         if (!variables) {
           navigate("/approvals");
         }
       }
     },
     onError: (error) => {
-      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: "destructive",
+      });
     }
   });
 
-  // Populate form with existing data if in edit mode
+  const [calculatedEmissions, setCalculatedEmissions] = useState({
+    electricity: 0,
+    coal: 0,
+    hsd: 0,
+    furnaceOil: 0,
+    petrol: 0,
+    total: 0
+  });
+
   useEffect(() => {
     if (isEditMode && submissionDetails) {
       const { submission, environmentalData, socialData, governanceData } = submissionDetails;
       
       setSelectedSite(submission.site_id);
       
-      // Parse dates to set month and year
       const startDate = new Date(submission.period_start);
       setSelectedMonth(MONTHS[startDate.getMonth()]);
       setSelectedYear(startDate.getFullYear().toString());
       
-      // Determine reporting span based on date range
       const periodStart = new Date(submission.period_start);
       const periodEnd = new Date(submission.period_end);
       const monthDiff = (periodEnd.getFullYear() - periodStart.getFullYear()) * 12 
@@ -243,7 +247,6 @@ const FormEntry = () => {
       
       setSubmitterName(submission.submitted_by);
       
-      // Set form data
       setFormData({
         environmental: { ...(environmentalData || {}) },
         social: { ...(socialData || {}) },
@@ -252,10 +255,38 @@ const FormEntry = () => {
     }
   }, [isEditMode, submissionDetails]);
 
+  useEffect(() => {
+    const EMISSION_FACTORS = {
+      electricity: 0.82,
+      coal: 2.42,
+      hsd: 2.68,
+      furnaceOil: 3.15,
+      petrol: 2.3
+    };
+
+    const envData = formData.environmental;
+    
+    const electricityEmissions = (Number(envData.total_electricity) || 0) * EMISSION_FACTORS.electricity;
+    const coalEmissions = (Number(envData.coal_consumption) || 0) * EMISSION_FACTORS.coal * 1000;
+    const hsdEmissions = (Number(envData.hsd_consumption) || 0) * EMISSION_FACTORS.hsd * 1000;
+    const furnaceOilEmissions = (Number(envData.furnace_oil_consumption) || 0) * EMISSION_FACTORS.furnaceOil * 1000;
+    const petrolEmissions = (Number(envData.petrol_consumption) || 0) * EMISSION_FACTORS.petrol * 1000;
+    
+    const totalEmissions = electricityEmissions + coalEmissions + hsdEmissions + furnaceOilEmissions + petrolEmissions;
+    
+    setCalculatedEmissions({
+      electricity: electricityEmissions / 1000,
+      coal: coalEmissions / 1000,
+      hsd: hsdEmissions / 1000,
+      furnaceOil: furnaceOilEmissions / 1000,
+      petrol: petrolEmissions / 1000,
+      total: totalEmissions / 1000
+    });
+  }, [formData.environmental]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation
     if (!selectedSite) {
       toast.error("Please select a site location");
       return;
@@ -276,12 +307,10 @@ const FormEntry = () => {
       return;
     }
     
-    // Submit the form
     submitMutation.mutate(false);
   };
 
   const handleSaveDraft = () => {
-    // Same validation as submit
     if (!selectedSite) {
       toast.error("Please select a site location");
       return;
@@ -292,11 +321,9 @@ const FormEntry = () => {
       return;
     }
     
-    // Save as draft
     submitMutation.mutate(true);
   };
 
-  // Update form data with debouncing to avoid flickering
   const updateFormData = (category: 'environmental' | 'social' | 'governance', id: string, value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -307,7 +334,6 @@ const FormEntry = () => {
     }));
   };
 
-  // Get parameters for the current tab and category
   const getCurrentParameters = () => {
     if (activeTab === "environmental") {
       return ENV_CATEGORIES[selectedCategory as keyof typeof ENV_CATEGORIES] || [];
@@ -318,7 +344,6 @@ const FormEntry = () => {
     }
   };
 
-  // Get all categories for the current tab
   const getCurrentCategories = () => {
     if (activeTab === "environmental") {
       return Object.keys(ENV_CATEGORIES);
@@ -513,6 +538,42 @@ const FormEntry = () => {
                 ))}
               </div>
             </div>
+
+            {activeTab === "environmental" && selectedCategory === "Energy Consumption" && (
+              <div className="mt-4 bg-blue-50 p-4 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <AlertCircle size={16} className="text-blue-600 mr-2" />
+                  <h4 className="text-sm font-semibold text-blue-800">Estimated Emissions (tCO2e)</h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500">Electricity</p>
+                    <p className="font-medium">{calculatedEmissions.electricity.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500">Coal</p>
+                    <p className="font-medium">{calculatedEmissions.coal.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500">HSD</p>
+                    <p className="font-medium">{calculatedEmissions.hsd.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500">Furnace Oil</p>
+                    <p className="font-medium">{calculatedEmissions.furnaceOil.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500">Petrol</p>
+                    <p className="font-medium">{calculatedEmissions.petrol.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-white rounded">
+                    <p className="text-gray-500 font-bold">Total</p>
+                    <p className="font-bold text-blue-700">{calculatedEmissions.total.toFixed(2)}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">These are estimated values. Actual emissions may vary based on precise emission factors.</p>
+              </div>
+            )}
           </Tabs>
           
           <div className="mb-6">

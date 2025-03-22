@@ -13,6 +13,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  LabelList,
 } from "recharts";
 import GlassCard from "@/components/ui/GlassCard";
 
@@ -68,6 +69,18 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
     return value.toLocaleString();
   };
 
+  // Format date to show as MMM'YY (e.g., Jan'24)
+  const formatXAxisTick = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      const month = date.toLocaleString('default', { month: 'short' });
+      const year = date.getFullYear().toString().slice(2);
+      return `${month}'${year}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   return (
     <GlassCard className="p-5" hoverable>
       <div className="flex flex-col space-y-4">
@@ -114,7 +127,10 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
+                <XAxis 
+                  dataKey="period" 
+                  tickFormatter={formatXAxisTick}
+                />
                 <YAxis />
                 <Tooltip formatter={(value) => [formatTooltipValue(Number(value)), '']} />
                 <Legend />
@@ -124,7 +140,9 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                     dataKey={key} 
                     fill={colors[index % colors.length]} 
                     radius={[4, 4, 0, 0]} 
-                  />
+                  >
+                    <LabelList dataKey={key} position="top" formatter={(value: number) => value ? value.toLocaleString() : ''} />
+                  </Bar>
                 ))}
               </BarChart>
             </ResponsiveContainer>
@@ -133,7 +151,10 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
+                <XAxis 
+                  dataKey="period" 
+                  tickFormatter={formatXAxisTick}
+                />
                 <YAxis />
                 <Tooltip formatter={(value) => [formatTooltipValue(Number(value)), '']} />
                 <Legend />
@@ -145,7 +166,9 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                     stroke={colors[index % colors.length]} 
                     strokeWidth={2} 
                     dot={{ r: 4 }} 
-                  />
+                  >
+                    <LabelList dataKey={key} position="top" formatter={(value: number) => value ? value.toLocaleString() : ''} />
+                  </Line>
                 ))}
               </LineChart>
             </ResponsiveContainer>
@@ -154,7 +177,10 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
+                <XAxis 
+                  dataKey="period" 
+                  tickFormatter={formatXAxisTick}
+                />
                 <YAxis />
                 <Tooltip formatter={(value) => [formatTooltipValue(Number(value)), '']} />
                 <Legend />
@@ -166,7 +192,9 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
                     fill={colors[index % colors.length]} 
                     stroke={colors[index % colors.length]} 
                     fillOpacity={0.6} 
-                  />
+                  >
+                    <LabelList dataKey={key} position="top" formatter={(value: number) => value ? value.toLocaleString() : ''} />
+                  </Area>
                 ))}
               </AreaChart>
             </ResponsiveContainer>
