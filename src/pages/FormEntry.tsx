@@ -1,17 +1,14 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -24,24 +21,75 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { 
-  fetchSites, 
-  createESGSubmission, 
-  updateESGSubmission, 
-  fetchESGSubmissionDetails 
+  createSubmission, 
+  saveAsDraft, 
+  updateSubmissionStatus, 
+  fetchSubmissionDetails 
 } from "@/services/esgSubmissionService";
-import { 
-  environmentalSchema, 
-  socialSchema, 
-  governanceSchema, 
-  esgFormSchema,
-  EnvironmentalData,
-  SocialData,
-  GovernanceData
-} from "@/schemas/esg";
+import { fetchSites } from "@/services/siteService";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import GlassCard from "@/components/ui/GlassCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { z } from "zod";
+
+// Define the schema for form validation
+const environmentalSchema = z.object({
+  total_electricity: z.number().optional(),
+  renewable_ppa: z.number().optional(),
+  renewable_rooftop: z.number().optional(),
+  coal_consumption: z.number().optional(),
+  hsd_consumption: z.number().optional(),
+  furnace_oil_consumption: z.number().optional(),
+  petrol_consumption: z.number().optional(),
+  nox: z.number().optional(),
+  sox: z.number().optional(),
+  pm: z.number().optional(),
+  water_withdrawal: z.number().optional(),
+  third_party_water: z.number().optional(),
+  rainwater: z.number().optional(),
+  total_waste: z.number().optional(),
+  total_hazardous: z.number().optional(),
+  non_hazardous: z.number().optional(),
+});
+
+const socialSchema = z.object({
+  total_employees: z.number().optional(),
+  male_employees: z.number().optional(),
+  female_employees: z.number().optional(),
+  new_hires: z.number().optional(),
+  attrition: z.number().optional(),
+  health_insurance: z.number().optional(),
+  accident_insurance: z.number().optional(),
+  parental_benefits: z.number().optional(),
+  pf_coverage: z.number().optional(),
+});
+
+const governanceSchema = z.object({
+  board_members: z.number().optional(),
+  women_percentage: z.number().optional(),
+  board_under30: z.number().optional(),
+  board_30to50: z.number().optional(),
+  board_above50: z.number().optional(),
+  cybersecurity_incidents: z.number().optional(),
+  corruption_incidents: z.number().optional(),
+  legal_fines: z.number().optional(),
+});
+
+// Main form schema
+const esgFormSchema = z.object({
+  site_id: z.string(),
+  environmentalData: environmentalSchema,
+  socialData: socialSchema, 
+  governanceData: governanceSchema,
+  submissionComment: z.string().optional(),
+});
+
+// TypeScript types
+type EnvironmentalData = z.infer<typeof environmentalSchema>;
+type SocialData = z.infer<typeof socialSchema>;
+type GovernanceData = z.infer<typeof governanceSchema>;
+type ESGFormData = z.infer<typeof esgFormSchema>;
 
 const FormEntry = () => {
   const [activeTab, setActiveTab] = useState("environmental");
@@ -61,11 +109,11 @@ const FormEntry = () => {
     error: submissionError 
   } = useQuery({
     queryKey: ['submission', id],
-    queryFn: () => id ? fetchESGSubmissionDetails(id) : null,
+    queryFn: () => id ? fetchSubmissionDetails(id) : null,
     enabled: !!id,
   });
 
-  const form = useForm<typeof esgFormSchema>({
+  const form = useForm<ESGFormData>({
     resolver: zodResolver(esgFormSchema),
     defaultValues: {
       site_id: "",
@@ -114,22 +162,83 @@ const FormEntry = () => {
 
   useEffect(() => {
     if (submissionDetails) {
+      // Extract the data correctly based on the API response structure
+      const envData = submissionDetails.environmentalData || {};
+      const socData = submissionDetails.socialData || {};
+      const govData = submissionDetails.governanceData || {};
+      
       form.reset({
-        site_id: submissionDetails.site_id,
-        environmentalData: submissionDetails.environmentalData,
-        socialData: submissionDetails.socialData,
-        governanceData: submissionDetails.governanceData,
-        submissionComment: submissionDetails.submissionComment,
+        site_id: submissionDetails.submission?.site_id || "",
+        environmentalData: {
+          total_electricity: envData.total_electricity,
+          renewable_ppa: envData.renewable_ppa,
+          renewable_rooftop: envData.renewable_rooftop,
+          coal_consumption: envData.coal_consumption,
+          hsd_consumption: envData.hsd_consumption,
+          furnace_oil_consumption: envData.furnace_oil_consumption,
+          petrol_consumption: envData.petrol_consumption,
+          nox: envData.nox,
+          sox: envData.sox,
+          pm: envData.pm,
+          water_withdrawal: envData.water_withdrawal,
+          third_party_water: envData.third_party_water,
+          rainwater: envData.rainwater,
+          total_waste: envData.total_waste,
+          total_hazardous: envData.total_hazardous,
+          non_hazardous: envData.non_hazardous,
+        },
+        socialData: {
+          total_employees: socData.total_employees,
+          male_employees: socData.male_employees,
+          female_employees: socData.female_employees,
+          new_hires: socData.new_hires,
+          attrition: socData.attrition,
+          health_insurance: socData.health_insurance,
+          accident_insurance: socData.accident_insurance,
+          parental_benefits: socData.parental_benefits,
+          pf_coverage: socData.pf_coverage,
+        },
+        governanceData: {
+          board_members: govData.board_members,
+          women_percentage: govData.women_percentage,
+          board_under30: govData.board_under30,
+          board_30to50: govData.board_30to50,
+          board_above50: govData.board_above50,
+          cybersecurity_incidents: govData.cybersecurity_incidents,
+          corruption_incidents: govData.corruption_incidents,
+          legal_fines: govData.legal_fines,
+        },
+        submissionComment: submissionDetails.submission?.review_comment || "",
       });
     }
   }, [submissionDetails, form]);
 
   const submissionMutation = useMutation({
-    mutationFn: async (data: typeof esgFormSchema) => {
+    mutationFn: async (data: ESGFormData) => {
       if (id) {
-        return updateESGSubmission(id, data, isDraft ? 'draft' : 'pending');
+        return updateSubmissionStatus(id, isDraft ? 'draft' : 'pending', "current-user", data.submissionComment);
       } else {
-        return createESGSubmission(data, isDraft ? 'draft' : 'pending');
+        if (isDraft) {
+          return saveAsDraft(
+            data.site_id,
+            new Date().toISOString().split('T')[0], // Current date as period_start
+            new Date().toISOString().split('T')[0], // Current date as period_end
+            "current-user",
+            data.environmentalData,
+            data.socialData,
+            data.governanceData
+          );
+        } else {
+          return createSubmission(
+            data.site_id,
+            new Date().toISOString().split('T')[0], // Current date as period_start
+            new Date().toISOString().split('T')[0], // Current date as period_end
+            "current-user",
+            data.environmentalData,
+            data.socialData,
+            data.governanceData
+          );
+        }
       }
     },
     onSuccess: () => {
@@ -140,11 +249,15 @@ const FormEntry = () => {
       navigate("/approvals");
     },
     onError: (error) => {
-      toast({ variant: "destructive", title: "Error", description: `Error submitting form: ${error instanceof Error ? error.message : 'Unknown error'}` });
+      toast({ 
+        variant: "destructive", 
+        title: "Error", 
+        description: `Error submitting form: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      });
     },
   });
 
-  const onSubmit = async (data: typeof esgFormSchema) => {
+  const onSubmit = async (data: ESGFormData) => {
     submissionMutation.mutate(data);
   };
 
@@ -158,7 +271,7 @@ const FormEntry = () => {
   }
 
   if (sitesError || submissionError) {
-    return <div className="text-red-500">Error: {sitesError?.message || submissionError?.message}</div>;
+    return <div className="text-red-500">Error: {(sitesError as Error)?.message || (submissionError as Error)?.message}</div>;
   }
 
   return (
@@ -181,7 +294,7 @@ const FormEntry = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {sites?.map((site) => (
+                        {sites && Array.isArray(sites) && sites.map((site) => (
                           <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
                         ))}
                       </SelectContent>
