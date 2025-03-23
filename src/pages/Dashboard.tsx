@@ -109,6 +109,40 @@ const Dashboard = () => {
     };
   }) || [];
 
+  // Calculate governance metrics from fetched governance data
+  const govData = dashboardData?.governanceData || [];
+  
+  // Calculate average values for governance metrics
+  const calcAverage = (arr, field) => {
+    if (!arr || arr.length === 0) return 0;
+    const sum = arr.reduce((acc, item) => acc + (Number(item[field]) || 0), 0);
+    return sum / arr.length;
+  };
+
+  const womenPercentage = calcAverage(govData, 'women_percentage');
+  const boardUnder30 = calcAverage(govData, 'board_under30');
+  const board30to50 = calcAverage(govData, 'board_30to50');
+  const boardAbove50 = calcAverage(govData, 'board_above50');
+  
+  const expUnder5 = calcAverage(govData, 'exp_under5');
+  const exp5to10 = calcAverage(govData, 'exp_5to10');
+  const expAbove10 = calcAverage(govData, 'exp_above10');
+  
+  // Sum incidents across all submissions
+  const totalCyberIncidents = govData.reduce((sum, item) => sum + (Number(item.cybersecurity_incidents) || 0), 0);
+  const totalCorruptionIncidents = govData.reduce((sum, item) => sum + (Number(item.corruption_incidents) || 0), 0);
+  const totalLegalFines = govData.reduce((sum, item) => sum + (Number(item.legal_fines) || 0), 0);
+  
+  // Calculate complaints and resolution metrics from social data
+  const workplaceComplaints = dashboardData?.socialData?.reduce((sum, item) => 
+    sum + (Number(item.workplace_complaints) || 0), 0) || 0;
+  
+  const consumerComplaints = dashboardData?.socialData?.reduce((sum, item) => 
+    sum + (Number(item.consumer_complaints) || 0), 0) || 0;
+  
+  // Assume 85% resolution rate or calculate if data is available
+  const resolutionRate = 85; // This could be calculated if the data includes resolution information
+
   return (
     <div className="container max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
@@ -189,13 +223,13 @@ const Dashboard = () => {
             
             <DashboardCard
               title="Governance Score"
-              value="75/100"
+              value={govData.length ? "75/100" : "0/100"}
               valueClassName="text-amber-500"
               icon={<Briefcase size={20} />}
               change={{ value: 2, positive: true }}
             >
-              <ProgressRing progress={75} size={60} strokeWidth={6} color="#FF9F0A">
-                <span className="text-sm font-semibold">75%</span>
+              <ProgressRing progress={govData.length ? 75 : 0} size={60} strokeWidth={6} color="#FF9F0A">
+                <span className="text-sm font-semibold">{govData.length ? 75 : 0}%</span>
               </ProgressRing>
             </DashboardCard>
           </div>
@@ -328,10 +362,10 @@ const Dashboard = () => {
                 <div>
                   <div className="flex justify-between mb-1">
                     <span className="text-sm text-gray-500">Women on Board</span>
-                    <span className="text-sm font-medium">30%</span>
+                    <span className="text-sm font-medium">{womenPercentage.toFixed(1)}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-esg-blue h-2 rounded-full" style={{ width: '30%' }}></div>
+                    <div className="bg-esg-blue h-2 rounded-full" style={{ width: `${womenPercentage}%` }}></div>
                   </div>
                 </div>
                 
@@ -340,15 +374,15 @@ const Dashboard = () => {
                   <div className="grid grid-cols-3 gap-2">
                     <div className="bg-gray-50 p-2 rounded text-center">
                       <p className="text-xs text-gray-500">{"<30"}</p>
-                      <p className="text-base font-medium">0%</p>
+                      <p className="text-base font-medium">{boardUnder30.toFixed(1)}%</p>
                     </div>
                     <div className="bg-gray-50 p-2 rounded text-center">
                       <p className="text-xs text-gray-500">30-50</p>
-                      <p className="text-base font-medium">40%</p>
+                      <p className="text-base font-medium">{board30to50.toFixed(1)}%</p>
                     </div>
                     <div className="bg-gray-50 p-2 rounded text-center">
                       <p className="text-xs text-gray-500">{">50"}</p>
-                      <p className="text-base font-medium">60%</p>
+                      <p className="text-base font-medium">{boardAbove50.toFixed(1)}%</p>
                     </div>
                   </div>
                 </div>
@@ -358,15 +392,15 @@ const Dashboard = () => {
                   <div className="grid grid-cols-3 gap-2">
                     <div className="bg-gray-50 p-2 rounded text-center">
                       <p className="text-xs text-gray-500">{"<5 yrs"}</p>
-                      <p className="text-base font-medium">10%</p>
+                      <p className="text-base font-medium">{expUnder5.toFixed(1)}%</p>
                     </div>
                     <div className="bg-gray-50 p-2 rounded text-center">
                       <p className="text-xs text-gray-500">5-10 yrs</p>
-                      <p className="text-base font-medium">30%</p>
+                      <p className="text-base font-medium">{exp5to10.toFixed(1)}%</p>
                     </div>
                     <div className="bg-gray-50 p-2 rounded text-center">
                       <p className="text-xs text-gray-500">{">10 yrs"}</p>
-                      <p className="text-base font-medium">60%</p>
+                      <p className="text-base font-medium">{expAbove10.toFixed(1)}%</p>
                     </div>
                   </div>
                 </div>
@@ -381,7 +415,7 @@ const Dashboard = () => {
                     <LockIcon size={18} className="text-esg-blue mr-2" />
                     <p className="text-sm font-medium">Cybersecurity Incidents</p>
                   </div>
-                  <p className="text-2xl font-semibold">1</p>
+                  <p className="text-2xl font-semibold">{totalCyberIncidents}</p>
                   <p className="text-xs text-gray-500 mt-1">All incidents promptly addressed</p>
                 </div>
                 
@@ -390,8 +424,17 @@ const Dashboard = () => {
                     <GavelIcon size={18} className="text-esg-blue mr-2" />
                     <p className="text-sm font-medium">Corruption Incidents</p>
                   </div>
-                  <p className="text-2xl font-semibold text-esg-green">0</p>
+                  <p className="text-2xl font-semibold text-esg-green">{totalCorruptionIncidents}</p>
                   <p className="text-xs text-gray-500 mt-1">Zero tolerance policy enforced</p>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <GavelIcon size={18} className="text-esg-blue mr-2" />
+                    <p className="text-sm font-medium">Legal Fines (USD)</p>
+                  </div>
+                  <p className="text-2xl font-semibold">${totalLegalFines.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">Regulatory compliance monitored</p>
                 </div>
               </div>
             </GlassCard>
@@ -402,20 +445,20 @@ const Dashboard = () => {
                 <div>
                   <div className="flex justify-between mb-1">
                     <span className="text-sm text-gray-500">Workplace Complaints</span>
-                    <span className="text-sm font-medium">5</span>
+                    <span className="text-sm font-medium">{workplaceComplaints}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-amber-500 h-2 rounded-full" style={{ width: '40%' }}></div>
+                    <div className="bg-amber-500 h-2 rounded-full" style={{ width: `${Math.min(workplaceComplaints * 10, 100)}%` }}></div>
                   </div>
                 </div>
                 
                 <div>
                   <div className="flex justify-between mb-1">
                     <span className="text-sm text-gray-500">Consumer Complaints</span>
-                    <span className="text-sm font-medium">2</span>
+                    <span className="text-sm font-medium">{consumerComplaints}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-esg-green h-2 rounded-full" style={{ width: '20%' }}></div>
+                    <div className="bg-esg-green h-2 rounded-full" style={{ width: `${Math.min(consumerComplaints * 10, 100)}%` }}></div>
                   </div>
                 </div>
                 
@@ -425,8 +468,8 @@ const Dashboard = () => {
                       <p className="text-sm font-medium">Resolution Rate</p>
                       <p className="text-xs text-gray-500">Average time: 7 days</p>
                     </div>
-                    <ProgressRing progress={85} size={60} strokeWidth={6} color="#0A84FF">
-                      <span className="text-sm font-semibold">85%</span>
+                    <ProgressRing progress={resolutionRate} size={60} strokeWidth={6} color="#0A84FF">
+                      <span className="text-sm font-semibold">{resolutionRate}%</span>
                     </ProgressRing>
                   </div>
                 </div>

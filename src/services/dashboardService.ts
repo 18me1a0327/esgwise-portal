@@ -54,6 +54,7 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
       siteStats: [],
       environmentalData: [],
       socialData: [],
+      governanceData: [],
       emissionFactors: [],
       chartData: {
         energyData: [],
@@ -103,6 +104,26 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
   if (socialError) {
     console.error('Error fetching social data:', socialError);
     throw new Error('Failed to fetch social data');
+  }
+
+  // Fetch governance data for approved submissions
+  const { data: governanceData, error: govError } = await supabase
+    .from('governance_data')
+    .select(`
+      *,
+      submission:esg_submissions(
+        id,
+        site_id,
+        period_start,
+        period_end,
+        sites(name)
+      )
+    `)
+    .in('submission_id', submissions?.map(s => s.id) || []);
+
+  if (govError) {
+    console.error('Error fetching governance data:', govError);
+    throw new Error('Failed to fetch governance data');
   }
 
   // Get emission factors
@@ -362,6 +383,7 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
     },
     environmentalData,
     socialData,
+    governanceData, // Added governance data to the return object
     emissionFactors
   };
 };
