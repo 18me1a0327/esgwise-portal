@@ -16,7 +16,7 @@ import {
 } from "recharts";
 import GlassCard from "@/components/ui/GlassCard";
 
-type TimelineData = {
+export type TimelineData = {
   date: string;
   displayDate: string;
   [key: string]: any;

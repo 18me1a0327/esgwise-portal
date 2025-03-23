@@ -29,7 +29,7 @@ const Dashboard = () => {
 
   const { data: dashboardData, isLoading: isLoadingDashboard } = useQuery({
     queryKey: ['dashboardData', selectedSite, timeframe],
-    queryFn: fetchDashboardData
+    queryFn: () => fetchDashboardData(selectedSite, timeframe)
   });
 
   const { data: sites } = useQuery({
@@ -87,18 +87,27 @@ const Dashboard = () => {
     { name: 'ESI', value: Number(item.esi_coverage) || 0 },
   ]).flat() || [];
 
-  // Create social metrics data for TimelineChart with required 'date' field
-  const socialMetricsData = dashboardData?.socialData?.map(item => ({
-    name: item.submission?.sites?.name || 'Unknown',
-    date: item.submission?.period_start || '',
-    period: `${new Date(item.submission?.period_start).toLocaleDateString()} - ${new Date(item.submission?.period_end).toLocaleDateString()}`,
-    'Health Insurance': Number(item.health_insurance) || 0,
-    'Accident Insurance': Number(item.accident_insurance) || 0,
-    'Parental Benefits': Number(item.parental_benefits) || 0,
-    'PF Coverage': Number(item.pf_coverage) || 0,
-    'Gratuity': Number(item.gratuity_coverage) || 0,
-    'ESI': Number(item.esi_coverage) || 0,
-  })) || [];
+  // Create social metrics data for TimelineChart with required 'date' and 'displayDate' fields
+  const socialMetricsData = dashboardData?.socialData?.map(item => {
+    const date = item.submission?.period_start || '';
+    const dateObj = new Date(date);
+    const monthAbbr = dateObj.toLocaleString('default', { month: 'short' });
+    const yearShort = dateObj.getFullYear().toString().slice(2);
+    const displayDate = `${monthAbbr}'${yearShort}`;
+    
+    return {
+      name: item.submission?.sites?.name || 'Unknown',
+      date,
+      displayDate,
+      period: `${new Date(item.submission?.period_start).toLocaleDateString()} - ${new Date(item.submission?.period_end).toLocaleDateString()}`,
+      'Health Insurance': Number(item.health_insurance) || 0,
+      'Accident Insurance': Number(item.accident_insurance) || 0,
+      'Parental Benefits': Number(item.parental_benefits) || 0,
+      'PF Coverage': Number(item.pf_coverage) || 0,
+      'Gratuity': Number(item.gratuity_coverage) || 0,
+      'ESI': Number(item.esi_coverage) || 0,
+    };
+  }) || [];
 
   return (
     <div className="container max-w-7xl mx-auto">
