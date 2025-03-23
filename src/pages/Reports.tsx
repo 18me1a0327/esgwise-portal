@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Download, FileDown, Filter, Loader2 } from "lucide-react";
@@ -38,6 +38,19 @@ import {
   ReportSocialData,
   ReportGovernanceData,
 } from "@/services/reportService";
+
+// Helper type for consolidated data
+type ConsolidatedData = {
+  siteId: string;
+  siteName: string;
+  periodMonth: string;
+  periodYear: string;
+  displayPeriod: string;
+  submissions: ApprovedSubmission[];
+  environmentalData?: ReportEnvironmentalData[];
+  socialData?: ReportSocialData[];
+  governanceData?: ReportGovernanceData[];
+};
 
 const Reports = () => {
   const [selectedSiteId, setSelectedSiteId] = useState<string | undefined>(undefined);
@@ -91,6 +104,94 @@ const Reports = () => {
     enabled: submissionIds.length > 0 && activeTab === "governance",
   });
 
+  // Consolidate data by site and month
+  const consolidatedData = useMemo(() => {
+    const dataMap = new Map<string, ConsolidatedData>();
+    
+    approvedSubmissions.forEach(submission => {
+      const periodDate = new Date(submission.period_start);
+      const month = periodDate.getMonth();
+      const year = periodDate.getFullYear();
+      const key = `${submission.site_id}-${month}-${year}`;
+      
+      if (!dataMap.has(key)) {
+        dataMap.set(key, {
+          siteId: submission.site_id,
+          siteName: submission.site_name,
+          periodMonth: format(periodDate, 'MMM'),
+          periodYear: format(periodDate, 'yyyy'),
+          displayPeriod: format(periodDate, 'MMM yyyy'),
+          submissions: [],
+          environmentalData: [],
+          socialData: [],
+          governanceData: []
+        });
+      }
+      
+      const entry = dataMap.get(key)!;
+      entry.submissions.push(submission);
+    });
+    
+    // Associate environmental data with consolidated entries
+    environmentalData.forEach(data => {
+      const submission = approvedSubmissions.find(sub => sub.id === data.submission_id);
+      if (submission) {
+        const periodDate = new Date(submission.period_start);
+        const month = periodDate.getMonth();
+        const year = periodDate.getFullYear();
+        const key = `${submission.site_id}-${month}-${year}`;
+        
+        if (dataMap.has(key)) {
+          const entry = dataMap.get(key)!;
+          if (!entry.environmentalData) {
+            entry.environmentalData = [];
+          }
+          entry.environmentalData.push(data);
+        }
+      }
+    });
+    
+    // Associate social data with consolidated entries
+    socialData.forEach(data => {
+      const submission = approvedSubmissions.find(sub => sub.id === data.submission_id);
+      if (submission) {
+        const periodDate = new Date(submission.period_start);
+        const month = periodDate.getMonth();
+        const year = periodDate.getFullYear();
+        const key = `${submission.site_id}-${month}-${year}`;
+        
+        if (dataMap.has(key)) {
+          const entry = dataMap.get(key)!;
+          if (!entry.socialData) {
+            entry.socialData = [];
+          }
+          entry.socialData.push(data);
+        }
+      }
+    });
+    
+    // Associate governance data with consolidated entries
+    governanceData.forEach(data => {
+      const submission = approvedSubmissions.find(sub => sub.id === data.submission_id);
+      if (submission) {
+        const periodDate = new Date(submission.period_start);
+        const month = periodDate.getMonth();
+        const year = periodDate.getFullYear();
+        const key = `${submission.site_id}-${month}-${year}`;
+        
+        if (dataMap.has(key)) {
+          const entry = dataMap.get(key)!;
+          if (!entry.governanceData) {
+            entry.governanceData = [];
+          }
+          entry.governanceData.push(data);
+        }
+      }
+    });
+    
+    return Array.from(dataMap.values());
+  }, [approvedSubmissions, environmentalData, socialData, governanceData]);
+
   const handleSiteChange = (value: string) => {
     setSelectedSiteId(value === "all" ? undefined : value);
   };
@@ -105,13 +206,24 @@ const Reports = () => {
         "Site,Period,Total Electricity,Renewable PPA,Renewable Rooftop,Coal Consumption,HSD Consumption,Furnace Oil,Petrol,Total Emissions,Water Withdrawal,Wastewater,Total Waste",
       ];
 
-      environmentalData.forEach(data => {
-        const submission = approvedSubmissions.find(sub => sub.id === data.submission_id);
-        if (submission) {
-          csvData.push(
-            `"${submission.site_name}","${format(new Date(submission.period_start), 'MMM yyyy')} - ${format(new Date(submission.period_end), 'MMM yyyy')}",${data.total_electricity || 0},${data.renewable_ppa || 0},${data.renewable_rooftop || 0},${data.coal_consumption || 0},${data.hsd_consumption || 0},${data.furnace_oil_consumption || 0},${data.petrol_consumption || 0},${data.total_emissions || 0},${data.water_withdrawal || 0},${data.wastewater_generated || 0},${data.total_waste || 0}`
-          );
-        }
+      // Group by site and month for CSV export
+      consolidatedData.forEach(group => {
+        // Calculate averages or sums as needed
+        const totalElectricity = group.environmentalData?.reduce((sum, data) => sum + (data.total_electricity || 0), 0) || 0;
+        const renewablePpa = group.environmentalData?.reduce((sum, data) => sum + (data.renewable_ppa || 0), 0) || 0;
+        const renewableRooftop = group.environmentalData?.reduce((sum, data) => sum + (data.renewable_rooftop || 0), 0) || 0;
+        const coalConsumption = group.environmentalData?.reduce((sum, data) => sum + (data.coal_consumption || 0), 0) || 0;
+        const hsdConsumption = group.environmentalData?.reduce((sum, data) => sum + (data.hsd_consumption || 0), 0) || 0;
+        const furnaceOil = group.environmentalData?.reduce((sum, data) => sum + (data.furnace_oil_consumption || 0), 0) || 0;
+        const petrol = group.environmentalData?.reduce((sum, data) => sum + (data.petrol_consumption || 0), 0) || 0;
+        const totalEmissions = group.environmentalData?.reduce((sum, data) => sum + (data.total_emissions || 0), 0) || 0;
+        const waterWithdrawal = group.environmentalData?.reduce((sum, data) => sum + (data.water_withdrawal || 0), 0) || 0;
+        const wastewater = group.environmentalData?.reduce((sum, data) => sum + (data.wastewater_generated || 0), 0) || 0;
+        const totalWaste = group.environmentalData?.reduce((sum, data) => sum + (data.total_waste || 0), 0) || 0;
+        
+        csvData.push(
+          `"${group.siteName}","${group.displayPeriod}",${totalElectricity},${renewablePpa},${renewableRooftop},${coalConsumption},${hsdConsumption},${furnaceOil},${petrol},${totalEmissions},${waterWithdrawal},${wastewater},${totalWaste}`
+        );
       });
     } else if (activeTab === "social" && socialData.length > 0) {
       filename = "social_report.csv";
@@ -119,13 +231,19 @@ const Reports = () => {
         "Site,Period,Total Employees,Female Employees,Male Employees,New Hires,Attrition,Injuries,Fatalities,Workplace Complaints",
       ];
 
-      socialData.forEach(data => {
-        const submission = approvedSubmissions.find(sub => sub.id === data.submission_id);
-        if (submission) {
-          csvData.push(
-            `"${submission.site_name}","${format(new Date(submission.period_start), 'MMM yyyy')} - ${format(new Date(submission.period_end), 'MMM yyyy')}",${data.total_employees || 0},${data.female_employees || 0},${data.male_employees || 0},${data.new_hires || 0},${data.attrition || 0},${data.injuries_employees || 0},${data.fatalities_employees || 0},${data.workplace_complaints || 0}`
-          );
-        }
+      consolidatedData.forEach(group => {
+        const totalEmployees = group.socialData?.reduce((sum, data) => sum + (data.total_employees || 0), 0) || 0;
+        const femaleEmployees = group.socialData?.reduce((sum, data) => sum + (data.female_employees || 0), 0) || 0;
+        const maleEmployees = group.socialData?.reduce((sum, data) => sum + (data.male_employees || 0), 0) || 0;
+        const newHires = group.socialData?.reduce((sum, data) => sum + (data.new_hires || 0), 0) || 0;
+        const attrition = group.socialData?.reduce((sum, data) => sum + (data.attrition || 0), 0) || 0;
+        const injuries = group.socialData?.reduce((sum, data) => sum + (data.injuries_employees || 0), 0) || 0;
+        const fatalities = group.socialData?.reduce((sum, data) => sum + (data.fatalities_employees || 0), 0) || 0;
+        const complaints = group.socialData?.reduce((sum, data) => sum + (data.workplace_complaints || 0), 0) || 0;
+        
+        csvData.push(
+          `"${group.siteName}","${group.displayPeriod}",${totalEmployees},${femaleEmployees},${maleEmployees},${newHires},${attrition},${injuries},${fatalities},${complaints}`
+        );
       });
     } else if (activeTab === "governance" && governanceData.length > 0) {
       filename = "governance_report.csv";
@@ -133,13 +251,17 @@ const Reports = () => {
         "Site,Period,Board Members,Women Percentage,Legal Fines,Corruption Incidents,Cybersecurity Incidents",
       ];
 
-      governanceData.forEach(data => {
-        const submission = approvedSubmissions.find(sub => sub.id === data.submission_id);
-        if (submission) {
-          csvData.push(
-            `"${submission.site_name}","${format(new Date(submission.period_start), 'MMM yyyy')} - ${format(new Date(submission.period_end), 'MMM yyyy')}",${data.board_members || 0},${data.women_percentage || 0},${data.legal_fines || 0},${data.corruption_incidents || 0},${data.cybersecurity_incidents || 0}`
-          );
-        }
+      consolidatedData.forEach(group => {
+        const boardMembers = group.governanceData?.reduce((sum, data) => sum + (data.board_members || 0), 0) || 0;
+        const womenPercentage = group.governanceData?.length ? 
+          group.governanceData.reduce((sum, data) => sum + (data.women_percentage || 0), 0) / group.governanceData.length : 0;
+        const legalFines = group.governanceData?.reduce((sum, data) => sum + (data.legal_fines || 0), 0) || 0;
+        const corruptionIncidents = group.governanceData?.reduce((sum, data) => sum + (data.corruption_incidents || 0), 0) || 0;
+        const cybersecurityIncidents = group.governanceData?.reduce((sum, data) => sum + (data.cybersecurity_incidents || 0), 0) || 0;
+        
+        csvData.push(
+          `"${group.siteName}","${group.displayPeriod}",${boardMembers},${womenPercentage.toFixed(2)},${legalFines},${corruptionIncidents},${cybersecurityIncidents}`
+        );
       });
     }
 
@@ -155,8 +277,46 @@ const Reports = () => {
     }
   };
 
-  const formatPeriod = (startDate: string, endDate: string) => {
-    return `${format(new Date(startDate), 'MMM yyyy')} - ${format(new Date(endDate), 'MMM yyyy')}`;
+  // Helper functions to calculate aggregated values for each consolidated group
+  const getAggregatedEnvironmentalData = (group: ConsolidatedData) => {
+    if (!group.environmentalData || group.environmentalData.length === 0) return null;
+    
+    return {
+      total_electricity: group.environmentalData.reduce((sum, data) => sum + (data.total_electricity || 0), 0),
+      renewable_energy: group.environmentalData.reduce((sum, data) => sum + ((data.renewable_ppa || 0) + (data.renewable_rooftop || 0)), 0),
+      total_emissions: group.environmentalData.reduce((sum, data) => sum + (data.total_emissions || 0), 0),
+      water_withdrawal: group.environmentalData.reduce((sum, data) => sum + (data.water_withdrawal || 0), 0),
+      total_waste: group.environmentalData.reduce((sum, data) => sum + (data.total_waste || 0), 0),
+    };
+  };
+
+  const getAggregatedSocialData = (group: ConsolidatedData) => {
+    if (!group.socialData || group.socialData.length === 0) return null;
+    
+    return {
+      total_employees: group.socialData.reduce((sum, data) => sum + (data.total_employees || 0), 0),
+      female_employees: group.socialData.reduce((sum, data) => sum + (data.female_employees || 0), 0),
+      male_employees: group.socialData.reduce((sum, data) => sum + (data.male_employees || 0), 0),
+      new_hires: group.socialData.reduce((sum, data) => sum + (data.new_hires || 0), 0),
+      attrition: group.socialData.reduce((sum, data) => sum + (data.attrition || 0), 0),
+      injuries_employees: group.socialData.reduce((sum, data) => sum + (data.injuries_employees || 0), 0),
+      workplace_complaints: group.socialData.reduce((sum, data) => sum + (data.workplace_complaints || 0), 0),
+    };
+  };
+
+  const getAggregatedGovernanceData = (group: ConsolidatedData) => {
+    if (!group.governanceData || group.governanceData.length === 0) return null;
+    
+    // For percentage values, we calculate the average
+    const count = group.governanceData.length;
+    
+    return {
+      board_members: group.governanceData.reduce((sum, data) => sum + (data.board_members || 0), 0),
+      women_percentage: group.governanceData.reduce((sum, data) => sum + (data.women_percentage || 0), 0) / count,
+      legal_fines: group.governanceData.reduce((sum, data) => sum + (data.legal_fines || 0), 0),
+      corruption_incidents: group.governanceData.reduce((sum, data) => sum + (data.corruption_incidents || 0), 0),
+      cybersecurity_incidents: group.governanceData.reduce((sum, data) => sum + (data.cybersecurity_incidents || 0), 0),
+    };
   };
 
   const renderEnvironmentalTable = () => {
@@ -175,27 +335,23 @@ const Reports = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {environmentalData.map(data => {
-              const submission = approvedSubmissions.find(sub => sub.id === data.submission_id);
-              if (!submission) return null;
+            {consolidatedData.map((group, index) => {
+              const aggregatedData = getAggregatedEnvironmentalData(group);
+              if (!aggregatedData) return null;
 
               return (
-                <TableRow key={data.id}>
-                  <TableCell>{submission.site_name}</TableCell>
-                  <TableCell>{formatPeriod(submission.period_start, submission.period_end)}</TableCell>
-                  <TableCell>{data.total_electricity ? `${data.total_electricity} kWh` : '-'}</TableCell>
-                  <TableCell>
-                    {((data.renewable_ppa || 0) + (data.renewable_rooftop || 0)) > 0 
-                      ? `${(data.renewable_ppa || 0) + (data.renewable_rooftop || 0)} kWh` 
-                      : '-'}
-                  </TableCell>
-                  <TableCell>{data.total_emissions ? `${data.total_emissions} tCO₂e` : '-'}</TableCell>
-                  <TableCell>{data.water_withdrawal ? `${data.water_withdrawal} kL` : '-'}</TableCell>
-                  <TableCell>{data.total_waste ? `${data.total_waste} tons` : '-'}</TableCell>
+                <TableRow key={`${group.siteId}-${group.periodMonth}-${group.periodYear}-${index}`}>
+                  <TableCell>{group.siteName}</TableCell>
+                  <TableCell>{group.displayPeriod}</TableCell>
+                  <TableCell>{aggregatedData.total_electricity ? `${aggregatedData.total_electricity.toLocaleString()} kWh` : '-'}</TableCell>
+                  <TableCell>{aggregatedData.renewable_energy > 0 ? `${aggregatedData.renewable_energy.toLocaleString()} kWh` : '-'}</TableCell>
+                  <TableCell>{aggregatedData.total_emissions ? `${aggregatedData.total_emissions.toLocaleString()} tCO₂e` : '-'}</TableCell>
+                  <TableCell>{aggregatedData.water_withdrawal ? `${aggregatedData.water_withdrawal.toLocaleString()} kL` : '-'}</TableCell>
+                  <TableCell>{aggregatedData.total_waste ? `${aggregatedData.total_waste.toLocaleString()} tons` : '-'}</TableCell>
                 </TableRow>
               );
             })}
-            {environmentalData.length === 0 && !isLoadingEnvironmental && (
+            {consolidatedData.length === 0 && !isLoadingEnvironmental && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-10 text-gray-500">
                   No environmental data available for the selected criteria.
@@ -226,25 +382,25 @@ const Reports = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {socialData.map(data => {
-              const submission = approvedSubmissions.find(sub => sub.id === data.submission_id);
-              if (!submission) return null;
+            {consolidatedData.map((group, index) => {
+              const aggregatedData = getAggregatedSocialData(group);
+              if (!aggregatedData) return null;
 
               return (
-                <TableRow key={data.id}>
-                  <TableCell>{submission.site_name}</TableCell>
-                  <TableCell>{formatPeriod(submission.period_start, submission.period_end)}</TableCell>
-                  <TableCell>{data.total_employees || '-'}</TableCell>
-                  <TableCell>{data.female_employees || '-'}</TableCell>
-                  <TableCell>{data.male_employees || '-'}</TableCell>
-                  <TableCell>{data.new_hires || '-'}</TableCell>
-                  <TableCell>{data.attrition || '-'}</TableCell>
-                  <TableCell>{data.injuries_employees || '-'}</TableCell>
-                  <TableCell>{data.workplace_complaints || '-'}</TableCell>
+                <TableRow key={`${group.siteId}-${group.periodMonth}-${group.periodYear}-${index}`}>
+                  <TableCell>{group.siteName}</TableCell>
+                  <TableCell>{group.displayPeriod}</TableCell>
+                  <TableCell>{aggregatedData.total_employees || '-'}</TableCell>
+                  <TableCell>{aggregatedData.female_employees || '-'}</TableCell>
+                  <TableCell>{aggregatedData.male_employees || '-'}</TableCell>
+                  <TableCell>{aggregatedData.new_hires || '-'}</TableCell>
+                  <TableCell>{aggregatedData.attrition || '-'}</TableCell>
+                  <TableCell>{aggregatedData.injuries_employees || '-'}</TableCell>
+                  <TableCell>{aggregatedData.workplace_complaints || '-'}</TableCell>
                 </TableRow>
               );
             })}
-            {socialData.length === 0 && !isLoadingSocial && (
+            {consolidatedData.length === 0 && !isLoadingSocial && (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-10 text-gray-500">
                   No social data available for the selected criteria.
@@ -273,23 +429,23 @@ const Reports = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {governanceData.map(data => {
-              const submission = approvedSubmissions.find(sub => sub.id === data.submission_id);
-              if (!submission) return null;
+            {consolidatedData.map((group, index) => {
+              const aggregatedData = getAggregatedGovernanceData(group);
+              if (!aggregatedData) return null;
 
               return (
-                <TableRow key={data.id}>
-                  <TableCell>{submission.site_name}</TableCell>
-                  <TableCell>{formatPeriod(submission.period_start, submission.period_end)}</TableCell>
-                  <TableCell>{data.board_members || '-'}</TableCell>
-                  <TableCell>{data.women_percentage ? `${data.women_percentage}%` : '-'}</TableCell>
-                  <TableCell>{data.legal_fines || '-'}</TableCell>
-                  <TableCell>{data.corruption_incidents || '-'}</TableCell>
-                  <TableCell>{data.cybersecurity_incidents || '-'}</TableCell>
+                <TableRow key={`${group.siteId}-${group.periodMonth}-${group.periodYear}-${index}`}>
+                  <TableCell>{group.siteName}</TableCell>
+                  <TableCell>{group.displayPeriod}</TableCell>
+                  <TableCell>{aggregatedData.board_members || '-'}</TableCell>
+                  <TableCell>{aggregatedData.women_percentage ? `${aggregatedData.women_percentage.toFixed(2)}%` : '-'}</TableCell>
+                  <TableCell>{aggregatedData.legal_fines || '-'}</TableCell>
+                  <TableCell>{aggregatedData.corruption_incidents || '-'}</TableCell>
+                  <TableCell>{aggregatedData.cybersecurity_incidents || '-'}</TableCell>
                 </TableRow>
               );
             })}
-            {governanceData.length === 0 && !isLoadingGovernance && (
+            {consolidatedData.length === 0 && !isLoadingGovernance && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-10 text-gray-500">
                   No governance data available for the selected criteria.
