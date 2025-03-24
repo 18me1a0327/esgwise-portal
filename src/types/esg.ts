@@ -1,4 +1,3 @@
-
 export type ApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected';
 
 export interface SiteInfo {
@@ -27,6 +26,13 @@ export interface AirEmissions {
   hazardousAirPollutants: number; // MT
 }
 
+export interface FugitiveEmissions {
+  refrigerantLeakage: number; // kg
+  methaneFugitives: number; // kg
+  sf6Leakage: number; // kg
+  co2Equivalents: number; // MT
+}
+
 export interface WaterManagement {
   totalWaterWithdrawal: number; // KL
   thirdPartyWaterUsage: number; // KL
@@ -52,6 +58,7 @@ export interface WasteManagement {
 export interface EnvironmentalData {
   energyConsumption: EnergyConsumption;
   airEmissions: AirEmissions;
+  fugitiveEmissions: FugitiveEmissions;
   waterManagement: WaterManagement;
   wasteManagement: WasteManagement;
 }
@@ -171,7 +178,6 @@ export interface ESGFormData {
   governance: GovernanceData;
 }
 
-// Mock data for demonstration purposes
 export const mockSites: SiteInfo[] = [
   { id: "1", name: "Unit-I Bonthapally", location: "Bonthapally", type: "Production" },
   { id: "2", name: "Unit-II Jeedimetla", location: "Jeedimetla", type: "Production" },
@@ -227,6 +233,12 @@ export const mockESGData: ESGFormData[] = [
         persistentOrganicPollutants: 5,
         volatileOrganicCompounds: 15,
         hazardousAirPollutants: 10
+      },
+      fugitiveEmissions: {
+        refrigerantLeakage: 0,
+        methaneFugitives: 0,
+        sf6Leakage: 0,
+        co2Equivalents: 0
       },
       waterManagement: {
         totalWaterWithdrawal: 50000,
@@ -350,6 +362,12 @@ export const mockESGData: ESGFormData[] = [
         persistentOrganicPollutants: 4,
         volatileOrganicCompounds: 14,
         hazardousAirPollutants: 9
+      },
+      fugitiveEmissions: {
+        refrigerantLeakage: 0,
+        methaneFugitives: 0,
+        sf6Leakage: 0,
+        co2Equivalents: 0
       },
       waterManagement: {
         totalWaterWithdrawal: 48000,
@@ -480,6 +498,12 @@ export const mockESGData: ESGFormData[] = [
         persistentOrganicPollutants: 6,
         volatileOrganicCompounds: 16,
         hazardousAirPollutants: 11
+      },
+      fugitiveEmissions: {
+        refrigerantLeakage: 0,
+        methaneFugitives: 0,
+        sf6Leakage: 0,
+        co2Equivalents: 0
       },
       waterManagement: {
         totalWaterWithdrawal: 55000,

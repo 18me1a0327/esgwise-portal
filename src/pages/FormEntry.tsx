@@ -53,6 +53,12 @@ const ENV_CATEGORIES = {
     { id: "voc", label: "Volatile Organic Compounds", unit: "MT" },
     { id: "hap", label: "Hazardous Air Pollutants", unit: "MT" }
   ],
+  "Fugitive Emissions": [
+    { id: "refrigerant_leakage", label: "Refrigerant Leakage", unit: "kg" },
+    { id: "methane_fugitives", label: "Methane Fugitives", unit: "kg" },
+    { id: "sf6_leakage", label: "SF6 Leakage", unit: "kg" },
+    { id: "co2_equivalents", label: "CO2 Equivalents", unit: "MT" }
+  ],
   "Water Management": [
     { id: "water_withdrawal", label: "Total Water Withdrawal", unit: "KL" },
     { id: "third_party_water", label: "Third-Party Water Usage", unit: "KL" },
@@ -123,6 +129,10 @@ interface EnvironmentalData {
   nox?: number;
   sox?: number;
   pm?: number;
+  refrigerant_leakage?: number;
+  methane_fugitives?: number;
+  sf6_leakage?: number;
+  co2_equivalents?: number;
   water_withdrawal?: number;
   third_party_water?: number;
   rainwater?: number;
