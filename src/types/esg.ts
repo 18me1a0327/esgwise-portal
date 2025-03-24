@@ -31,6 +31,12 @@ export interface FugitiveEmissions {
   methaneFugitives: number; // kg
   sf6Leakage: number; // kg
   co2Equivalents: number; // MT
+  r22RefrigerantGas: number; // kg
+  r32RefrigerantGas: number; // kg
+  r410RefrigerantGas: number; // kg
+  r134aRefrigerantGas: number; // kg
+  r514aRefrigerantGas: number; // kg
+  co2RefilledQty: number; // kg
 }
 
 export interface WaterManagement {
@@ -238,7 +244,13 @@ export const mockESGData: ESGFormData[] = [
         refrigerantLeakage: 0,
         methaneFugitives: 0,
         sf6Leakage: 0,
-        co2Equivalents: 0
+        co2Equivalents: 0,
+        r22RefrigerantGas: 0,
+        r32RefrigerantGas: 0,
+        r410RefrigerantGas: 0,
+        r134aRefrigerantGas: 0,
+        r514aRefrigerantGas: 0,
+        co2RefilledQty: 0
       },
       waterManagement: {
         totalWaterWithdrawal: 50000,
@@ -367,7 +379,13 @@ export const mockESGData: ESGFormData[] = [
         refrigerantLeakage: 0,
         methaneFugitives: 0,
         sf6Leakage: 0,
-        co2Equivalents: 0
+        co2Equivalents: 0,
+        r22RefrigerantGas: 0,
+        r32RefrigerantGas: 0,
+        r410RefrigerantGas: 0,
+        r134aRefrigerantGas: 0,
+        r514aRefrigerantGas: 0,
+        co2RefilledQty: 0
       },
       waterManagement: {
         totalWaterWithdrawal: 48000,
@@ -503,7 +521,13 @@ export const mockESGData: ESGFormData[] = [
         refrigerantLeakage: 0,
         methaneFugitives: 0,
         sf6Leakage: 0,
-        co2Equivalents: 0
+        co2Equivalents: 0,
+        r22RefrigerantGas: 0,
+        r32RefrigerantGas: 0,
+        r410RefrigerantGas: 0,
+        r134aRefrigerantGas: 0,
+        r514aRefrigerantGas: 0,
+        co2RefilledQty: 0
       },
       waterManagement: {
         totalWaterWithdrawal: 55000,
@@ -595,3 +619,4 @@ export const mockESGData: ESGFormData[] = [
     }
   }
 ];
+

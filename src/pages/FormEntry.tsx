@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -57,7 +58,13 @@ const ENV_CATEGORIES = {
     { id: "refrigerant_leakage", label: "Refrigerant Leakage", unit: "kg" },
     { id: "methane_fugitives", label: "Methane Fugitives", unit: "kg" },
     { id: "sf6_leakage", label: "SF6 Leakage", unit: "kg" },
-    { id: "co2_equivalents", label: "CO2 Equivalents", unit: "MT" }
+    { id: "co2_equivalents", label: "CO2 Equivalents", unit: "MT" },
+    { id: "r22_refrigerant", label: "R22 Refrigerant gas consumed", unit: "kg" },
+    { id: "r32_refrigerant", label: "R32 Refrigerant gas consumed", unit: "kg" },
+    { id: "r410_refrigerant", label: "R410 Refrigerant gas consumed", unit: "kg" },
+    { id: "r134a_refrigerant", label: "R134A Refrigerant gas consumed", unit: "kg" },
+    { id: "r514a_refrigerant", label: "R514A Refrigerant gas consumed", unit: "kg" },
+    { id: "co2_refilled", label: "CO2 Refilled Qty", unit: "kg" }
   ],
   "Water Management": [
     { id: "water_withdrawal", label: "Total Water Withdrawal", unit: "KL" },
@@ -133,6 +140,12 @@ interface EnvironmentalData {
   methane_fugitives?: number;
   sf6_leakage?: number;
   co2_equivalents?: number;
+  r22_refrigerant?: number;
+  r32_refrigerant?: number;
+  r410_refrigerant?: number;
+  r134a_refrigerant?: number;
+  r514a_refrigerant?: number;
+  co2_refilled?: number;
   water_withdrawal?: number;
   third_party_water?: number;
   rainwater?: number;
