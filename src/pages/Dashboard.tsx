@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { 
   BarChart3Icon, 
@@ -132,12 +131,11 @@ const Dashboard = () => {
   const totalCorruptionIncidents = govData.reduce((sum, item) => sum + (Number(item.corruption_incidents) || 0), 0);
   const totalLegalFines = govData.reduce((sum, item) => sum + (Number(item.legal_fines) || 0), 0);
   
-  // Fix for the error - properly accessing workplace_complaints and consumer_complaints
-  const workplaceComplaints = dashboardData?.socialData?.reduce((sum, item) => 
-    sum + (Number(item.workplace_complaints) || 0), 0) || 0;
+  const workplaceComplaints = (dashboardData?.socialData || []).reduce((sum, item) => 
+    sum + (Number(item.workplace_complaints) || 0), 0);
   
-  const consumerComplaints = dashboardData?.socialData?.reduce((sum, item) => 
-    sum + (Number(item.consumer_complaints) || 0), 0) || 0;
+  const consumerComplaints = (dashboardData?.socialData || []).reduce((sum, item) => 
+    sum + (Number(item.consumer_complaints) || 0), 0);
   
   const resolutionRate = 85;
 
