@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 // Category types
@@ -28,6 +27,16 @@ export interface Parameter {
   subcategory_id: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ESGParameterStructure {
+  [categoryType: string]: {
+    [categoryName: string]: {
+      [subcategoryName: string]: {
+        parameters: Parameter[];
+      }
+    }
+  }
 }
 
 // Category functions
@@ -231,4 +240,78 @@ export const deleteParameter = async (id: string): Promise<void> => {
     .eq('id', id);
   
   if (error) throw new Error(error.message);
+};
+
+// New function to fetch ESG parameters in a structured format for forms
+export const fetchESGParameterStructure = async (): Promise<ESGParameterStructure> => {
+  try {
+    // Fetch all the required data
+    const categories = await fetchCategories();
+    const subcategories = await fetchSubcategories();
+    const parameters = await fetchParameters();
+    
+    // Create the structure
+    const structure: ESGParameterStructure = {
+      environmental: {},
+      social: {},
+      governance: {}
+    };
+    
+    // Group by category type first
+    categories.forEach(category => {
+      if (!structure[category.type]) {
+        structure[category.type] = {};
+      }
+      
+      structure[category.type][category.name] = {};
+      
+      // Find subcategories for this category
+      const categorySubs = subcategories.filter(sub => sub.category_id === category.id);
+      
+      categorySubs.forEach(subcategory => {
+        structure[category.type][category.name][subcategory.name] = {
+          parameters: parameters.filter(param => 
+            param.category_id === category.id && 
+            param.subcategory_id === subcategory.id
+          )
+        };
+      });
+    });
+    
+    return structure;
+  } catch (error) {
+    console.error("Error fetching ESG parameter structure:", error);
+    throw error;
+  }
+};
+
+// Utility function to get parameter by name (useful for forms)
+export const findParameterByName = (parameters: Parameter[], name: string): Parameter | undefined => {
+  return parameters.find(param => param.name.toLowerCase() === name.toLowerCase());
+};
+
+// Utility to convert parameter data for submission (mapping form data to parameters)
+export const mapFormDataToParameters = (formData: Record<string, any>, parameterStructure: ESGParameterStructure): Record<string, any> => {
+  const mappedData: Record<string, any> = {};
+  
+  // Iterate through the form data and match with parameters
+  Object.entries(formData).forEach(([key, value]) => {
+    // Find the parameter with matching name across all categories and subcategories
+    for (const categoryType in parameterStructure) {
+      for (const categoryName in parameterStructure[categoryType]) {
+        for (const subcategoryName in parameterStructure[categoryType][categoryName]) {
+          const { parameters } = parameterStructure[categoryType][categoryName][subcategoryName];
+          const parameter = findParameterByName(parameters, key);
+          
+          if (parameter) {
+            // Store using parameter id for database consistency
+            mappedData[parameter.id] = value;
+            break;
+          }
+        }
+      }
+    }
+  });
+  
+  return mappedData;
 };
