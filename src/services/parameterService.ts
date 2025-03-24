@@ -38,7 +38,12 @@ export const fetchCategories = async (): Promise<Category[]> => {
     .order('name');
   
   if (error) throw new Error(error.message);
-  return data || [];
+  
+  // Cast the 'type' field from string to CategoryType
+  return (data || []).map(item => ({
+    ...item,
+    type: item.type as CategoryType
+  }));
 };
 
 export const fetchCategoriesByType = async (type: CategoryType): Promise<Category[]> => {
@@ -49,7 +54,12 @@ export const fetchCategoriesByType = async (type: CategoryType): Promise<Categor
     .order('name');
   
   if (error) throw new Error(error.message);
-  return data || [];
+  
+  // Cast the 'type' field from string to CategoryType
+  return (data || []).map(item => ({
+    ...item,
+    type: item.type as CategoryType
+  }));
 };
 
 export const createCategory = async (name: string, type: CategoryType): Promise<Category> => {
@@ -60,7 +70,12 @@ export const createCategory = async (name: string, type: CategoryType): Promise<
     .single();
   
   if (error) throw new Error(error.message);
-  return data;
+  
+  // Cast the 'type' field from string to CategoryType
+  return {
+    ...data,
+    type: data.type as CategoryType
+  };
 };
 
 export const updateCategory = async (id: string, name: string, type: CategoryType): Promise<Category> => {
@@ -72,7 +87,12 @@ export const updateCategory = async (id: string, name: string, type: CategoryTyp
     .single();
   
   if (error) throw new Error(error.message);
-  return data;
+  
+  // Cast the 'type' field from string to CategoryType
+  return {
+    ...data,
+    type: data.type as CategoryType
+  };
 };
 
 export const deleteCategory = async (id: string): Promise<void> => {
