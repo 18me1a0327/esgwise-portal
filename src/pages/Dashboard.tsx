@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { 
   BarChart3Icon, 
@@ -8,7 +7,8 @@ import {
   Briefcase, 
   Loader2,
   LockIcon,
-  GavelIcon
+  GavelIcon,
+  Wind
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import GlassCard from "@/components/ui/GlassCard";
@@ -17,6 +17,7 @@ import ProgressRing from "@/components/Dashboard/ProgressRing";
 import CarbonEmissionsChart from "@/components/Dashboard/CarbonEmissionsChart";
 import TimelineEnergyChart from "@/components/Dashboard/TimelineEnergyChart";
 import TimelineChart from "@/components/Dashboard/TimelineChart";
+import FugitiveEmissionsChart from "@/components/Dashboard/FugitiveEmissionsChart";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
@@ -70,6 +71,7 @@ const Dashboard = () => {
   const waterData = dashboardData?.chartData?.waterData || [];
   const wasteData = dashboardData?.chartData?.wasteData || [];
   const carbonEmissionsData = dashboardData?.chartData?.carbonEmissionsData || [];
+  const fugitiveEmissionsData = dashboardData?.fugitiveEmissionsData || [];
 
   const employeeData = dashboardData?.socialData?.map(item => [
     { name: 'Male Employees', value: Number(item.male_employees) || 0 },
@@ -87,7 +89,6 @@ const Dashboard = () => {
     { name: 'ESI', value: Number(item.esi_coverage) || 0 },
   ]).flat() || [];
 
-  // Create social metrics data for TimelineChart with required 'date' and 'displayDate' fields
   const socialMetricsData = dashboardData?.socialData?.map(item => {
     const date = item.submission?.period_start || '';
     const dateObj = new Date(date);
@@ -109,10 +110,8 @@ const Dashboard = () => {
     };
   }) || [];
 
-  // Calculate governance metrics from fetched governance data
   const govData = dashboardData?.governanceData || [];
   
-  // Calculate average values for governance metrics
   const calcAverage = (arr, field) => {
     if (!arr || arr.length === 0) return 0;
     const sum = arr.reduce((acc, item) => acc + (Number(item[field]) || 0), 0);
@@ -128,20 +127,17 @@ const Dashboard = () => {
   const exp5to10 = calcAverage(govData, 'exp_5to10');
   const expAbove10 = calcAverage(govData, 'exp_above10');
   
-  // Sum incidents across all submissions
   const totalCyberIncidents = govData.reduce((sum, item) => sum + (Number(item.cybersecurity_incidents) || 0), 0);
   const totalCorruptionIncidents = govData.reduce((sum, item) => sum + (Number(item.corruption_incidents) || 0), 0);
   const totalLegalFines = govData.reduce((sum, item) => sum + (Number(item.legal_fines) || 0), 0);
   
-  // Calculate complaints and resolution metrics from social data
   const workplaceComplaints = dashboardData?.socialData?.reduce((sum, item) => 
     sum + (Number(item.workplace_complaints) || 0), 0) || 0;
   
   const consumerComplaints = dashboardData?.socialData?.reduce((sum, item) => 
     sum + (Number(item.consumer_complaints) || 0), 0) || 0;
   
-  // Assume 85% resolution rate or calculate if data is available
-  const resolutionRate = 85; // This could be calculated if the data includes resolution information
+  const resolutionRate = 85;
 
   return (
     <div className="container max-w-7xl mx-auto">
@@ -244,6 +240,12 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 gap-6 mb-6">
             <TimelineEnergyChart data={energyData} />
           </div>
+          
+          {dashboardData?.fugitiveEmissionsData && (
+            <div className="grid grid-cols-1 gap-6 mb-6">
+              <FugitiveEmissionsChart data={dashboardData.fugitiveEmissionsData} />
+            </div>
+          )}
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <TimelineChart 

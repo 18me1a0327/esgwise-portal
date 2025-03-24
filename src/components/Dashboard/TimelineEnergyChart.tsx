@@ -21,6 +21,7 @@ type EnergyData = {
   displayDate: string;
   totalElectricity: number;
   renewableEnergy: number;
+  iRecs: number; // Added I-RECs data
   coal: number;
   fossilFuels: number;
 };
@@ -30,7 +31,7 @@ interface TimelineEnergyChartProps {
 }
 
 const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
-  const COLORS = ['#0A84FF', '#30D158', '#FF9F0A', '#FF453A'];
+  const COLORS = ['#0A84FF', '#30D158', '#64D2FF', '#FF9F0A', '#FF453A'];
   const [metric, setMetric] = useState<'consumption' | 'renewable'>('consumption');
 
   if (!data || data.length === 0) {
@@ -42,26 +43,29 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
   }
 
   // Calculate renewable percentage for each period
+  // Including I-RECs in the renewable calculation
   const renewableData = data.map(item => ({
     ...item,
     renewablePercentage: item.totalElectricity > 0 
-      ? (item.renewableEnergy / item.totalElectricity) * 100 
+      ? ((item.renewableEnergy + item.iRecs) / item.totalElectricity) * 100 
       : 0
   }));
 
-  // Calculate total renewable percentage
+  // Calculate total renewable percentage including I-RECs
   const totalElectricity = data.reduce((sum, item) => sum + item.totalElectricity, 0);
   const totalRenewable = data.reduce((sum, item) => sum + item.renewableEnergy, 0);
+  const totalIRecs = data.reduce((sum, item) => sum + (item.iRecs || 0), 0);
   const overallRenewablePercentage = totalElectricity > 0 
-    ? (totalRenewable / totalElectricity) * 100 
+    ? ((totalRenewable + totalIRecs) / totalElectricity) * 100 
     : 0;
 
   // Prepare pie data for energy source breakdown
   const pieData = [
     { name: 'Renewable', value: totalRenewable },
+    { name: 'I-RECs', value: totalIRecs },
     { name: 'Coal', value: data.reduce((sum, item) => sum + item.coal, 0) },
     { name: 'Fossil Fuels', value: data.reduce((sum, item) => sum + item.fossilFuels, 0) },
-    { name: 'Non-Renewable Electricity', value: totalElectricity - totalRenewable },
+    { name: 'Non-Renewable Electricity', value: totalElectricity - totalRenewable - totalIRecs },
   ];
 
   return (
@@ -97,7 +101,7 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
             </div>
             <div>
               <p className="text-sm text-gray-500">Renewable Energy</p>
-              <p className="text-xl font-semibold text-green-600">{totalRenewable.toLocaleString()} kWh</p>
+              <p className="text-xl font-semibold text-green-600">{(totalRenewable + totalIRecs).toLocaleString()} kWh</p>
             </div>
           </div>
         </div>
@@ -116,6 +120,7 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
                 <Legend />
                 <Bar yAxisId="left" dataKey="totalElectricity" name="Total Electricity" fill="#0A84FF" radius={[4, 4, 0, 0]} isAnimationActive={false} label={false} />
                 <Bar yAxisId="left" dataKey="renewableEnergy" name="Renewable Energy" fill="#30D158" radius={[4, 4, 0, 0]} isAnimationActive={false} label={false} />
+                <Bar yAxisId="left" dataKey="iRecs" name="I-RECs" fill="#64D2FF" radius={[4, 4, 0, 0]} isAnimationActive={false} label={false} />
                 <Bar yAxisId="left" dataKey="coal" name="Coal" fill="#FF9F0A" radius={[4, 4, 0, 0]} isAnimationActive={false} label={false} />
                 <Bar yAxisId="left" dataKey="fossilFuels" name="Fossil Fuels" fill="#FF453A" radius={[4, 4, 0, 0]} isAnimationActive={false} label={false} />
                 <Line yAxisId="right" type="monotone" dataKey="renewableEnergy" name="Renewable Trend" stroke="#22C55E" strokeWidth={2} dot={{ stroke: '#22C55E', strokeWidth: 2, r: 4 }} isAnimationActive={false} label={false} />
@@ -182,6 +187,10 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
                 <p className="text-xs text-gray-500">Renewable Energy</p>
                 <p className="text-sm font-medium">{totalRenewable.toLocaleString()} kWh</p>
               </div>
+              <div className="bg-blue-50 p-2 rounded text-center">
+                <p className="text-xs text-gray-500">I-RECs</p>
+                <p className="text-sm font-medium">{totalIRecs.toLocaleString()} kWh</p>
+              </div>
               <div className="bg-amber-50 p-2 rounded text-center">
                 <p className="text-xs text-gray-500">Coal Consumption</p>
                 <p className="text-sm font-medium">{data.reduce((sum, item) => sum + item.coal, 0).toLocaleString()} MT</p>
@@ -189,6 +198,10 @@ const TimelineEnergyChart: React.FC<TimelineEnergyChartProps> = ({ data }) => {
               <div className="bg-red-50 p-2 rounded text-center">
                 <p className="text-xs text-gray-500">Fossil Fuels</p>
                 <p className="text-sm font-medium">{data.reduce((sum, item) => sum + item.fossilFuels, 0).toLocaleString()} KL</p>
+              </div>
+              <div className="bg-green-50 p-2 rounded text-center">
+                <p className="text-xs text-gray-500">Market-Based %</p>
+                <p className="text-sm font-medium">{overallRenewablePercentage.toFixed(1)}%</p>
               </div>
             </div>
           </div>

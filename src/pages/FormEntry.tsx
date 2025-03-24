@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -38,7 +37,8 @@ const REPORTING_SPANS = ["Monthly", "Quarterly", "Annually"];
 
 const ENV_CATEGORIES = {
   "Energy Consumption": [
-    { id: "total_electricity", label: "Total electricity consumption", unit: "kWh" },
+    { id: "total_electricity", label: "Electricity from Grid", unit: "kWh" },
+    { id: "i_recs", label: "I-REC's claimed", unit: "kWh" },
     { id: "renewable_ppa", label: "Electricity from renewable sources", unit: "kWh" },
     { id: "renewable_rooftop", label: "Electricity from renewable sources through Rooftop", unit: "kWh" },
     { id: "coal_consumption", label: "Coal consumption", unit: "MT" },
@@ -127,6 +127,7 @@ const GOVERNANCE_CATEGORIES = {
 
 interface EnvironmentalData {
   total_electricity?: number;
+  i_recs?: number;
   renewable_ppa?: number;
   renewable_rooftop?: number;
   coal_consumption?: number;
@@ -346,7 +347,11 @@ const FormEntry = () => {
 
     const envData = formData.environmental;
     
-    const electricityEmissions = (Number(envData.total_electricity) || 0) * EMISSION_FACTORS.electricity;
+    const totalElectricity = Number(envData.total_electricity) || 0;
+    const iRecs = Number(envData.i_recs) || 0;
+    const marketBasedElectricity = Math.max(0, totalElectricity - iRecs);
+    
+    const electricityEmissions = marketBasedElectricity * EMISSION_FACTORS.electricity;
     const coalEmissions = (Number(envData.coal_consumption) || 0) * EMISSION_FACTORS.coal * 1000;
     const hsdEmissions = (Number(envData.hsd_consumption) || 0) * EMISSION_FACTORS.hsd * 1000;
     const furnaceOilEmissions = (Number(envData.furnace_oil_consumption) || 0) * EMISSION_FACTORS.furnaceOil * 1000;

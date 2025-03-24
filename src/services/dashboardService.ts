@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") => {
@@ -187,12 +186,14 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
         totalElectricity: 0,
         renewableEnergy: 0,
         coal: 0,
-        fossilFuels: 0
+        fossilFuels: 0,
+        iRecs: 0 // Added I-RECs tracking
       });
     }
     
     const monthData = monthlyDataMap.get(monthKey);
     monthData.totalElectricity += Number(item.total_electricity) || 0;
+    monthData.iRecs += Number(item.i_recs) || 0; // Track I-RECs
     monthData.renewableEnergy += (Number(item.renewable_ppa) || 0) + (Number(item.renewable_rooftop) || 0);
     monthData.coal += Number(item.coal_consumption) || 0;
     monthData.fossilFuels += (Number(item.hsd_consumption) || 0) + 
@@ -272,7 +273,7 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
     monthData.WasteOil += Number(item.waste_oil) || 0;
   });
 
-  // Process carbon emissions data grouped by month
+  // Process carbon emissions data grouped by month, including fugitive emissions
   environmentalData?.forEach(item => {
     const monthKey = getMonthKey(item.submission.period_end);
     
@@ -283,7 +284,23 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
                   (Number(item.petrol_emissions) || 0);
     
     // Scope 2: Indirect emissions from purchased electricity
+    // Using market-based calculation (subtracting I-RECs)
     const scope2 = Number(item.electricity_emissions) || 0;
+    
+    // Fugitive emissions - converting to CO2 equivalents using GWP values
+    // These are approximate GWP (Global Warming Potential) values
+    const gwpR22 = 1810; // HCFC-22
+    const gwpR32 = 675;
+    const gwpR410 = 2088;
+    const gwpR134a = 1430;
+    const gwpR514a = 2;
+    
+    const fugitiveEmissions = 
+      ((Number(item.r22_refrigerant) || 0) * gwpR22 + 
+      (Number(item.r32_refrigerant) || 0) * gwpR32 + 
+      (Number(item.r410_refrigerant) || 0) * gwpR410 + 
+      (Number(item.r134a_refrigerant) || 0) * gwpR134a + 
+      (Number(item.r514a_refrigerant) || 0) * gwpR514a) / 1000; // Convert kg to metric tons
     
     // Scope 3: All other indirect emissions (estimated as 20% of scope 1+2 for this example)
     const scope3 = (scope1 + scope2) * 0.2;
@@ -295,6 +312,7 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
         scope1: 0,
         scope2: 0,
         scope3: 0,
+        fugitiveEmissions: 0, // Add fugitive emissions tracking
         total: 0
       });
     }
@@ -303,7 +321,8 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
     monthData.scope1 += scope1;
     monthData.scope2 += scope2;
     monthData.scope3 += scope3;
-    monthData.total += scope1 + scope2 + scope3;
+    monthData.fugitiveEmissions += fugitiveEmissions; // Add fugitive emissions
+    monthData.total += scope1 + scope2 + scope3 + fugitiveEmissions; // Include fugitive emissions in total
   });
 
   // Convert maps to arrays and sort chronologically
@@ -355,6 +374,26 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
     return acc;
   }, {});
 
+  // Add processing for fugitive emissions data
+  const fugitiveEmissionsData = Array.from(environmentalData || []).reduce((acc, item) => {
+    const r22 = Number(item.r22_refrigerant) || 0;
+    const r32 = Number(item.r32_refrigerant) || 0;
+    const r410 = Number(item.r410_refrigerant) || 0;
+    const r134a = Number(item.r134a_refrigerant) || 0;
+    const r514a = Number(item.r514a_refrigerant) || 0;
+    const co2Refilled = Number(item.co2_refilled) || 0;
+    
+    return {
+      r22: acc.r22 + r22,
+      r32: acc.r32 + r32,
+      r410: acc.r410 + r410,
+      r134a: acc.r134a + r134a,
+      r514a: acc.r514a + r514a,
+      co2Refilled: acc.co2Refilled + co2Refilled,
+      total: acc.total + r22 + r32 + r410 + r134a + r514a + co2Refilled
+    };
+  }, { r22: 0, r32: 0, r410: 0, r134a: 0, r514a: 0, co2Refilled: 0, total: 0 });
+
   console.log('Dashboard data prepared:', { 
     totalSubmissions, 
     totalEmissions, 
@@ -366,7 +405,8 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
       waterData: waterData.length,
       wasteData: wasteData.length,
       carbonEmissionsData: carbonEmissionsData.length
-    }
+    },
+    fugitiveEmissionsData // Log new fugitive emissions data
   });
 
   return {
@@ -381,9 +421,10 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
       wasteData,
       carbonEmissionsData
     },
+    fugitiveEmissionsData, // Add fugitive emissions data to the return object
     environmentalData,
     socialData,
-    governanceData, // Added governance data to the return object
+    governanceData,
     emissionFactors
   };
 };

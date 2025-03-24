@@ -48,6 +48,7 @@ export type Database = {
       environmental_data: {
         Row: {
           bio_medical: number | null
+          co2_refilled: number | null
           coal_consumption: number | null
           coal_emissions: number | null
           created_at: string
@@ -61,6 +62,7 @@ export type Database = {
           hazardous_landfill: number | null
           hsd_consumption: number | null
           hsd_emissions: number | null
+          i_recs: number | null
           id: string
           non_hazardous: number | null
           nox: number | null
@@ -69,6 +71,11 @@ export type Database = {
           plastic_waste: number | null
           pm: number | null
           pop: number | null
+          r134a_refrigerant: number | null
+          r22_refrigerant: number | null
+          r32_refrigerant: number | null
+          r410_refrigerant: number | null
+          r514a_refrigerant: number | null
           rainwater: number | null
           recycled_wastewater: number | null
           renewable_ppa: number | null
@@ -89,6 +96,7 @@ export type Database = {
         }
         Insert: {
           bio_medical?: number | null
+          co2_refilled?: number | null
           coal_consumption?: number | null
           coal_emissions?: number | null
           created_at?: string
@@ -102,6 +110,7 @@ export type Database = {
           hazardous_landfill?: number | null
           hsd_consumption?: number | null
           hsd_emissions?: number | null
+          i_recs?: number | null
           id?: string
           non_hazardous?: number | null
           nox?: number | null
@@ -110,6 +119,11 @@ export type Database = {
           plastic_waste?: number | null
           pm?: number | null
           pop?: number | null
+          r134a_refrigerant?: number | null
+          r22_refrigerant?: number | null
+          r32_refrigerant?: number | null
+          r410_refrigerant?: number | null
+          r514a_refrigerant?: number | null
           rainwater?: number | null
           recycled_wastewater?: number | null
           renewable_ppa?: number | null
@@ -130,6 +144,7 @@ export type Database = {
         }
         Update: {
           bio_medical?: number | null
+          co2_refilled?: number | null
           coal_consumption?: number | null
           coal_emissions?: number | null
           created_at?: string
@@ -143,6 +158,7 @@ export type Database = {
           hazardous_landfill?: number | null
           hsd_consumption?: number | null
           hsd_emissions?: number | null
+          i_recs?: number | null
           id?: string
           non_hazardous?: number | null
           nox?: number | null
@@ -151,6 +167,11 @@ export type Database = {
           plastic_waste?: number | null
           pm?: number | null
           pop?: number | null
+          r134a_refrigerant?: number | null
+          r22_refrigerant?: number | null
+          r32_refrigerant?: number | null
+          r410_refrigerant?: number | null
+          r514a_refrigerant?: number | null
           rainwater?: number | null
           recycled_wastewater?: number | null
           renewable_ppa?: number | null

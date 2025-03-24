@@ -8,7 +8,8 @@ export interface SiteInfo {
 }
 
 export interface EnergyConsumption {
-  totalElectricity: number; // kWh
+  totalElectricity: number; // kWh - renamed to Electricity from Grid
+  iRecs: number; // kWh - new field for I-REC's claimed
   renewableElectricityPPA: number; // kWh
   renewableElectricityRooftop: number; // kWh
   coalConsumption: number; // MT
@@ -225,6 +226,7 @@ export const mockESGData: ESGFormData[] = [
     environmental: {
       energyConsumption: {
         totalElectricity: 150000,
+        iRecs: 30000,
         renewableElectricityPPA: 50000,
         renewableElectricityRooftop: 10000,
         coalConsumption: 200,
@@ -360,6 +362,7 @@ export const mockESGData: ESGFormData[] = [
     environmental: {
       energyConsumption: {
         totalElectricity: 130000,
+        iRecs: 25000,
         renewableElectricityPPA: 40000,
         renewableElectricityRooftop: 8000,
         coalConsumption: 180,
@@ -502,6 +505,7 @@ export const mockESGData: ESGFormData[] = [
     environmental: {
       energyConsumption: {
         totalElectricity: 160000,
+        iRecs: 35000,
         renewableElectricityPPA: 55000,
         renewableElectricityRooftop: 12000,
         coalConsumption: 220,
@@ -619,4 +623,3 @@ export const mockESGData: ESGFormData[] = [
     }
   }
 ];
-
