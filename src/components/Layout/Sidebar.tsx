@@ -15,7 +15,8 @@ import {
   Users,
   Shield,
   Database,
-  FileBarChart2
+  FileBarChart2,
+  List
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -193,6 +194,7 @@ const Sidebar = () => {
                   <NavItem to="/admin/users" icon={<Users size={16} />} label="User Management" />
                   <NavItem to="/admin/sites" icon={<BuildingIcon size={16} />} label="Sites" />
                   <NavItem to="/admin/emission-factors" icon={<Database size={16} />} label="Emission Factors" />
+                  <NavItem to="/admin/parameters" icon={<List size={16} />} label="Manage Parameters" />
                 </div>
               )}
             </div>

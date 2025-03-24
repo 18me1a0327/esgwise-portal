@@ -23,6 +23,7 @@ const Reports = lazy(() => import("./pages/Reports"));
 const Sites = lazy(() => import("./pages/Sites"));
 const EmissionFactors = lazy(() => import("./pages/EmissionFactors"));
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
+const ManageParameters = lazy(() => import("./pages/admin/ManageParameters"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +58,7 @@ const App = () => (
                   <Route path="/admin/sites" element={<PageTransition><Sites /></PageTransition>} />
                   <Route path="/admin/emission-factors" element={<PageTransition><EmissionFactors /></PageTransition>} />
                   <Route path="/admin/users" element={<PageTransition><UserManagement /></PageTransition>} />
+                  <Route path="/admin/parameters" element={<PageTransition><ManageParameters /></PageTransition>} />
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>
