@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -26,8 +25,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchSites } from "@/services/siteService";
 import { createSubmission, saveAsDraft, fetchSubmissionDetails } from "@/services/esgSubmissionService";
-import { useESGParameters, isESGStructureLoaded } from "@/hooks/useESGParameters";
-import { ESGParameterStructure } from "@/services/parameterService";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -38,15 +35,149 @@ const YEARS = ["2022", "2023", "2024", "2025", "2026"];
 
 const REPORTING_SPANS = ["Monthly", "Quarterly", "Annually"];
 
+const ENV_CATEGORIES = {
+  "Energy Consumption": [
+    { id: "total_electricity", label: "Electricity from Grid", unit: "kWh" },
+    { id: "i_recs", label: "I-REC's claimed", unit: "kWh" },
+    { id: "renewable_ppa", label: "Electricity from renewable sources", unit: "kWh" },
+    { id: "renewable_rooftop", label: "Electricity from renewable sources through Rooftop", unit: "kWh" },
+    { id: "coal_consumption", label: "Coal consumption", unit: "MT" },
+    { id: "hsd_consumption", label: "HSD (High-Speed Diesel) consumption", unit: "KL" },
+    { id: "furnace_oil_consumption", label: "Furnace Oil consumption", unit: "MT" },
+    { id: "petrol_consumption", label: "Petrol consumption", unit: "KL" }
+  ],
+  "Air Emissions": [
+    { id: "nox", label: "Oxides of Nitrogen (NOx)", unit: "MT" },
+    { id: "sox", label: "Sulfur Oxides (SOx)", unit: "MT" },
+    { id: "pm", label: "Particulate Matter (PM)", unit: "MT" },
+    { id: "pop", label: "Persistent Organic Pollutants", unit: "MT" },
+    { id: "voc", label: "Volatile Organic Compounds", unit: "MT" },
+    { id: "hap", label: "Hazardous Air Pollutants", unit: "MT" }
+  ],
+  "Fugitive Emissions": [
+    { id: "refrigerant_leakage", label: "Refrigerant Leakage", unit: "kg" },
+    { id: "methane_fugitives", label: "Methane Fugitives", unit: "kg" },
+    { id: "sf6_leakage", label: "SF6 Leakage", unit: "kg" },
+    { id: "co2_equivalents", label: "CO2 Equivalents", unit: "MT" },
+    { id: "r22_refrigerant", label: "R22 Refrigerant gas consumed", unit: "kg" },
+    { id: "r32_refrigerant", label: "R32 Refrigerant gas consumed", unit: "kg" },
+    { id: "r410_refrigerant", label: "R410 Refrigerant gas consumed", unit: "kg" },
+    { id: "r134a_refrigerant", label: "R134A Refrigerant gas consumed", unit: "kg" },
+    { id: "r514a_refrigerant", label: "R514A Refrigerant gas consumed", unit: "kg" },
+    { id: "co2_refilled", label: "CO2 Refilled Qty", unit: "kg" }
+  ],
+  "Water Management": [
+    { id: "water_withdrawal", label: "Total Water Withdrawal", unit: "KL" },
+    { id: "third_party_water", label: "Third-Party Water Usage", unit: "KL" },
+    { id: "rainwater", label: "Rainwater Harvesting", unit: "KL" },
+    { id: "wastewater_generated", label: "Total Wastewater Generated", unit: "KL" },
+    { id: "recycled_wastewater", label: "Recycled Wastewater", unit: "KL" },
+    { id: "water_discharged", label: "Water Discharged to Third Parties", unit: "KL" }
+  ],
+  "Waste Management": [
+    { id: "hazardous_landfill", label: "Hazardous Waste to Landfill", unit: "MT" },
+    { id: "hazardous_incinerated", label: "Hazardous Waste Incinerated", unit: "MT" },
+    { id: "hazardous_coprocessed", label: "Hazardous Waste Co-Processed", unit: "MT" },
+    { id: "total_hazardous", label: "Total Hazardous Waste", unit: "MT" },
+    { id: "plastic_waste", label: "Plastic Waste", unit: "MT" },
+    { id: "non_hazardous", label: "Non-Hazardous Waste", unit: "MT" },
+    { id: "bio_medical", label: "Bio-Medical Waste", unit: "MT" },
+    { id: "e_waste", label: "E-Waste", unit: "MT" },
+    { id: "waste_oil", label: "Waste Oil", unit: "MT" },
+    { id: "total_waste", label: "Total Waste Generated", unit: "MT" }
+  ]
+};
+
+const SOCIAL_CATEGORIES = {
+  "Employment & Workforce": [
+    { id: "total_employees", label: "Total Number of Employees", unit: "" },
+    { id: "male_employees", label: "Number of Male Employees", unit: "" },
+    { id: "female_employees", label: "Number of Female Employees", unit: "" },
+    { id: "new_hires", label: "Number of New Hires", unit: "" },
+    { id: "contract_male", label: "Number of Contract Workers (Male)", unit: "" },
+    { id: "contract_female", label: "Number of Contract Workers (Female)", unit: "" },
+    { id: "attrition", label: "Attrition (Absolute Number)", unit: "" }
+  ],
+  "Employee Benefits": [
+    { id: "health_insurance", label: "Employees with Health Insurance", unit: "%" },
+    { id: "accident_insurance", label: "Employees with Accident Insurance", unit: "%" },
+    { id: "parental_benefits", label: "Employees with Parental Benefits", unit: "%" },
+    { id: "pf_coverage", label: "Employees with PF Coverage", unit: "%" },
+    { id: "gratuity_coverage", label: "Employees with Gratuity Coverage", unit: "%" },
+    { id: "esi_coverage", label: "Employees with ESI Coverage", unit: "%" }
+  ]
+};
+
+const GOVERNANCE_CATEGORIES = {
+  "Board Composition": [
+    { id: "board_members", label: "Number of Board Members", unit: "" },
+    { id: "women_percentage", label: "Percentage of Women on Board", unit: "%" },
+    { id: "board_under30", label: "Board Members Under 30 Years", unit: "%" },
+    { id: "board_30to50", label: "Board Members Between 30-50 Years", unit: "%" },
+    { id: "board_above50", label: "Board Members Above 50 Years", unit: "%" }
+  ],
+  "Cybersecurity": [
+    { id: "cybersecurity_incidents", label: "Number of Data Privacy or Cybersecurity Incidents", unit: "" }
+  ],
+  "Business Ethics": [
+    { id: "corruption_incidents", label: "Number of Corruption and Bribery Incidents", unit: "" },
+    { id: "legal_fines", label: "Number of Legal Fines or Penalties", unit: "" }
+  ]
+};
+
 interface EnvironmentalData {
+  total_electricity?: number;
+  i_recs?: number;
+  renewable_ppa?: number;
+  renewable_rooftop?: number;
+  coal_consumption?: number;
+  hsd_consumption?: number;
+  furnace_oil_consumption?: number;
+  petrol_consumption?: number;
+  nox?: number;
+  sox?: number;
+  pm?: number;
+  refrigerant_leakage?: number;
+  methane_fugitives?: number;
+  sf6_leakage?: number;
+  co2_equivalents?: number;
+  r22_refrigerant?: number;
+  r32_refrigerant?: number;
+  r410_refrigerant?: number;
+  r134a_refrigerant?: number;
+  r514a_refrigerant?: number;
+  co2_refilled?: number;
+  water_withdrawal?: number;
+  third_party_water?: number;
+  rainwater?: number;
+  total_waste?: number;
+  total_hazardous?: number;
+  non_hazardous?: number;
   [key: string]: number | undefined;
 }
 
 interface SocialData {
+  total_employees?: number;
+  male_employees?: number;
+  female_employees?: number;
+  new_hires?: number;
+  attrition?: number;
+  health_insurance?: number;
+  accident_insurance?: number;
+  parental_benefits?: number;
+  pf_coverage?: number;
   [key: string]: number | undefined;
 }
 
 interface GovernanceData {
+  board_members?: number;
+  women_percentage?: number;
+  board_under30?: number;
+  board_30to50?: number;
+  board_above50?: number;
+  cybersecurity_incidents?: number;
+  corruption_incidents?: number;
+  legal_fines?: number;
   [key: string]: number | undefined;
 }
 
@@ -78,16 +209,12 @@ const FormEntry = () => {
   const [submitterName, setSubmitterName] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [activeTab, setActiveTab] = useState("environmental");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("Energy Consumption");
   const [formData, setFormData] = useState({
     environmental: {} as EnvironmentalData,
     social: {} as SocialData,
     governance: {} as GovernanceData
   });
-
-  // Load ESG parameters from the Manage Parameters page
-  const { data: esgStructure, isLoading: isESGStructureLoading } = useESGParameters();
-  const structureLoaded = isESGStructureLoaded(esgStructure);
 
   const { data: sites, isLoading: isSitesLoading } = useQuery({
     queryKey: ['sites'],
@@ -209,19 +336,6 @@ const FormEntry = () => {
     }
   }, [isEditMode, submissionDetails]);
 
-  // Set initial category when ESG structure is loaded
-  useEffect(() => {
-    if (structureLoaded && esgStructure) {
-      // Set initial selected category to first available category in the active tab
-      const categoryType = activeTab as keyof ESGParameterStructure;
-      const categories = Object.keys(esgStructure[categoryType] || {});
-      
-      if (categories.length > 0 && !selectedCategory) {
-        setSelectedCategory(categories[0]);
-      }
-    }
-  }, [structureLoaded, esgStructure, activeTab, selectedCategory]);
-
   useEffect(() => {
     const EMISSION_FACTORS = {
       electricity: 0.82,
@@ -329,20 +443,24 @@ const FormEntry = () => {
     }));
   };
 
-  // Get categories for the active tab from esgStructure
-  const getCurrentCategories = () => {
-    if (!structureLoaded || !esgStructure) return [];
-    
-    const categoryType = activeTab as keyof ESGParameterStructure;
-    return Object.keys(esgStructure[categoryType] || {});
+  const getCurrentParameters = () => {
+    if (activeTab === "environmental") {
+      return ENV_CATEGORIES[selectedCategory as keyof typeof ENV_CATEGORIES] || [];
+    } else if (activeTab === "social") {
+      return SOCIAL_CATEGORIES[selectedCategory as keyof typeof SOCIAL_CATEGORIES] || [];
+    } else {
+      return GOVERNANCE_CATEGORIES[selectedCategory as keyof typeof GOVERNANCE_CATEGORIES] || [];
+    }
   };
 
-  // Get parameters for the selected category from esgStructure
-  const getCurrentParameters = () => {
-    if (!structureLoaded || !esgStructure || !selectedCategory) return [];
-    
-    const categoryType = activeTab as keyof ESGParameterStructure;
-    return esgStructure[categoryType]?.[selectedCategory]?.parameters || [];
+  const getCurrentCategories = () => {
+    if (activeTab === "environmental") {
+      return Object.keys(ENV_CATEGORIES);
+    } else if (activeTab === "social") {
+      return Object.keys(SOCIAL_CATEGORIES);
+    } else {
+      return Object.keys(GOVERNANCE_CATEGORIES);
+    }
   };
 
   if (isSubmissionLoading) {
@@ -475,81 +593,59 @@ const FormEntry = () => {
             </TabsList>
             
             <div className="mb-4">
-              <Label htmlFor="subcategory">Category</Label>
-              {isESGStructureLoading ? (
-                <div className="flex items-center mt-2 text-sm text-gray-500">
-                  <Loader2 size={16} className="mr-2 animate-spin" />
-                  Loading categories...
-                </div>
-              ) : (
-                <Select 
-                  value={selectedCategory} 
-                  onValueChange={setSelectedCategory}
-                >
-                  <SelectTrigger id="subcategory" className="mt-1">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getCurrentCategories().map(category => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <Label htmlFor="subcategory">Subcategory</Label>
+              <Select 
+                value={selectedCategory} 
+                onValueChange={setSelectedCategory}
+              >
+                <SelectTrigger id="subcategory" className="mt-1">
+                  <SelectValue placeholder="Select subcategory" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getCurrentCategories().map(category => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="bg-gray-50 p-6 rounded-lg">
               <h3 className="text-lg font-medium mb-4">Parameters</h3>
               
-              {isESGStructureLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                </div>
-              ) : getCurrentParameters().length > 0 ? (
-                <div className="space-y-4">
-                  {getCurrentParameters().map(param => (
-                    <div key={param.id} className="flex items-center border-b border-gray-100 pb-3">
-                      <div className="mr-2">
-                        <PlusCircle size={18} className="text-gray-400" />
-                      </div>
-                      <div className="flex-1">
-                        <Label htmlFor={param.id} className="font-medium">
-                          {param.name}
-                          {param.unit && (
-                            <span className="text-xs text-gray-500 block mt-0.5">
-                              {param.unit}
-                            </span>
-                          )}
-                        </Label>
-                      </div>
-                      <div className="w-40">
-                        <Input
-                          id={param.id}
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={formData[activeTab as keyof typeof formData][param.id] || ''}
-                          onChange={(e) => updateFormData(
-                            activeTab as 'environmental' | 'social' | 'governance',
-                            param.id,
-                            e.target.value
-                          )}
-                          className="text-right"
-                        />
-                      </div>
+              <div className="space-y-4">
+                {getCurrentParameters().map(param => (
+                  <div key={param.id} className="flex items-center border-b border-gray-100 pb-3">
+                    <div className="mr-2">
+                      <PlusCircle size={18} className="text-gray-400" />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 text-center border rounded-md">
-                  <p className="text-gray-500">No parameters available for this category.</p>
-                  <p className="text-sm text-gray-400 mt-2">
-                    You can add parameters in the ESG Parameter Management page.
-                  </p>
-                </div>
-              )}
+                    <div className="flex-1">
+                      <Label htmlFor={param.id} className="font-medium">
+                        {param.label}
+                        <span className="text-xs text-gray-500 block mt-0.5">
+                          {param.unit}
+                        </span>
+                      </Label>
+                    </div>
+                    <div className="w-40">
+                      <Input
+                        id={param.id}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData[activeTab as keyof typeof formData][param.id] || ''}
+                        onChange={(e) => updateFormData(
+                          activeTab as 'environmental' | 'social' | 'governance',
+                          param.id,
+                          e.target.value
+                        )}
+                        className="text-right"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {activeTab === "environmental" && selectedCategory === "Energy Consumption" && (
