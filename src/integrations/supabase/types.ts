@@ -342,7 +342,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          subcategory_id: string
+          subcategory_id: string | null
           unit: string | null
           updated_at: string
         }
@@ -351,7 +351,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
-          subcategory_id: string
+          subcategory_id?: string | null
           unit?: string | null
           updated_at?: string
         }
@@ -360,7 +360,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
-          subcategory_id?: string
+          subcategory_id?: string | null
           unit?: string | null
           updated_at?: string
         }

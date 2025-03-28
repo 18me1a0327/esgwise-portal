@@ -17,6 +17,7 @@ export interface Parameter {
   name: string;
   unit: string | null;
   category_id: string;
+  subcategory_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -135,7 +136,8 @@ export const createParameter = async (
     .insert([{ 
       name, 
       unit, 
-      category_id: categoryId
+      category_id: categoryId,
+      subcategory_id: null // Now we can explicitly set it to null
     }])
     .select()
     .single();
@@ -155,7 +157,8 @@ export const updateParameter = async (
     .update({ 
       name, 
       unit, 
-      category_id: categoryId
+      category_id: categoryId,
+      subcategory_id: null // Now we can explicitly set it to null
     })
     .eq('id', id)
     .select()
