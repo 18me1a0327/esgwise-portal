@@ -9,9 +9,8 @@ import {
   ChevronRight, 
   ChevronDown,
   Loader2,
-  Copy
+  Save
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,20 +44,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useESGParameters, isESGStructureLoaded } from "@/hooks/useESGParameters";
 
 import {
+  CategoryType,
+  Category,
+  Subcategory,
+  Parameter,
   fetchCategories,
-  fetchCategoriesByType,
   createCategory,
   updateCategory,
   deleteCategory,
@@ -72,46 +68,29 @@ import {
   createParameter,
   updateParameter,
   deleteParameter,
-  Category,
-  Subcategory,
-  Parameter,
-  CategoryType,
 } from "@/services/parameterService";
 
 const ManageParameters = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<string>("parameters");
+
+  // State for active tab and selected items
+  const [activeTab, setActiveTab] = useState<CategoryType>("environmental");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
-  // Parameter dialog states
-  const [isParameterDialogOpen, setIsParameterDialogOpen] = useState(false);
-  const [parameterName, setParameterName] = useState("");
-  const [parameterUnit, setParameterUnit] = useState("");
-  const [parameterCategoryId, setParameterCategoryId] = useState("");
-  const [parameterSubcategoryId, setParameterSubcategoryId] = useState("");
-  const [editingParameterId, setEditingParameterId] = useState<string | null>(null);
+  // Get all ESG parameters in a structured format
+  const { data: esgStructure, isLoading: isESGStructureLoading } = useESGParameters();
+  const structureLoaded = isESGStructureLoaded(esgStructure);
 
-  // Category dialog states
-  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
-  const [categoryName, setCategoryName] = useState("");
-  const [categoryType, setCategoryType] = useState<CategoryType>("environmental");
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-
-  // Subcategory dialog states
-  const [isSubcategoryDialogOpen, setIsSubcategoryDialogOpen] = useState(false);
-  const [subcategoryName, setSubcategoryName] = useState("");
-  const [subcategoryCategoryId, setSubcategoryCategoryId] = useState("");
-  const [editingSubcategoryId, setEditingSubcategoryId] = useState<string | null>(null);
-
-  // Fetch data
+  // Basic data queries
   const { data: categories = [], isLoading: isCategoriesLoading } = useQuery({
     queryKey: ['categories'],
     queryFn: fetchCategories
   });
 
+  // Get subcategories for the selected category
   const { data: subcategories = [], isLoading: isSubcategoriesLoading } = useQuery({
     queryKey: ['subcategories', selectedCategory],
     queryFn: () => selectedCategory 
@@ -120,6 +99,7 @@ const ManageParameters = () => {
     enabled: !!selectedCategory
   });
 
+  // Get parameters for the selected subcategory
   const { data: parameters = [], isLoading: isParametersLoading } = useQuery({
     queryKey: ['parameters', selectedSubcategory],
     queryFn: () => selectedSubcategory 
@@ -128,7 +108,25 @@ const ManageParameters = () => {
     enabled: !!selectedSubcategory
   });
 
-  // Category mutations
+  // Dialog states for forms
+  const [isParameterDialogOpen, setIsParameterDialogOpen] = useState(false);
+  const [parameterName, setParameterName] = useState("");
+  const [parameterUnit, setParameterUnit] = useState("");
+  const [parameterCategoryId, setParameterCategoryId] = useState("");
+  const [parameterSubcategoryId, setParameterSubcategoryId] = useState("");
+  const [editingParameterId, setEditingParameterId] = useState<string | null>(null);
+
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [categoryName, setCategoryName] = useState("");
+  const [categoryType, setCategoryType] = useState<CategoryType>("environmental");
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+
+  const [isSubcategoryDialogOpen, setIsSubcategoryDialogOpen] = useState(false);
+  const [subcategoryName, setSubcategoryName] = useState("");
+  const [subcategoryCategoryId, setSubcategoryCategoryId] = useState("");
+  const [editingSubcategoryId, setEditingSubcategoryId] = useState<string | null>(null);
+
+  // Mutations
   const categoryMutation = useMutation({
     mutationFn: (variables: { id?: string; name: string; type: CategoryType }) => {
       if (variables.id) {
@@ -138,6 +136,7 @@ const ManageParameters = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['esg-parameters'] });
       toast({
         title: editingCategoryId ? "Category updated" : "Category created",
         description: `Category has been ${editingCategoryId ? "updated" : "created"} successfully.`,
@@ -157,6 +156,7 @@ const ManageParameters = () => {
     mutationFn: deleteCategory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['esg-parameters'] });
       toast({
         title: "Category deleted",
         description: "Category has been deleted successfully.",
@@ -171,7 +171,6 @@ const ManageParameters = () => {
     }
   });
 
-  // Subcategory mutations
   const subcategoryMutation = useMutation({
     mutationFn: (variables: { id?: string; name: string; categoryId: string }) => {
       if (variables.id) {
@@ -181,6 +180,7 @@ const ManageParameters = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+      queryClient.invalidateQueries({ queryKey: ['esg-parameters'] });
       toast({
         title: editingSubcategoryId ? "Subcategory updated" : "Subcategory created",
         description: `Subcategory has been ${editingSubcategoryId ? "updated" : "created"} successfully.`,
@@ -200,6 +200,7 @@ const ManageParameters = () => {
     mutationFn: deleteSubcategory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+      queryClient.invalidateQueries({ queryKey: ['esg-parameters'] });
       toast({
         title: "Subcategory deleted",
         description: "Subcategory has been deleted successfully.",
@@ -214,7 +215,6 @@ const ManageParameters = () => {
     }
   });
 
-  // Parameter mutations
   const parameterMutation = useMutation({
     mutationFn: (variables: { 
       id?: string; 
@@ -241,6 +241,7 @@ const ManageParameters = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parameters'] });
+      queryClient.invalidateQueries({ queryKey: ['esg-parameters'] });
       toast({
         title: editingParameterId ? "Parameter updated" : "Parameter created",
         description: `Parameter has been ${editingParameterId ? "updated" : "created"} successfully.`,
@@ -260,6 +261,7 @@ const ManageParameters = () => {
     mutationFn: deleteParameter,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parameters'] });
+      queryClient.invalidateQueries({ queryKey: ['esg-parameters'] });
       toast({
         title: "Parameter deleted",
         description: "Parameter has been deleted successfully.",
@@ -274,7 +276,7 @@ const ManageParameters = () => {
     }
   });
 
-  // Reset form functions
+  // Form reset functions
   const resetCategoryForm = () => {
     setEditingCategoryId(null);
     setCategoryName("");
@@ -302,7 +304,7 @@ const ManageParameters = () => {
   const editCategory = (category: Category) => {
     setEditingCategoryId(category.id);
     setCategoryName(category.name);
-    setCategoryType(category.type as CategoryType);
+    setCategoryType(category.type);
     setIsCategoryDialogOpen(true);
   };
 
@@ -322,7 +324,7 @@ const ManageParameters = () => {
     setIsParameterDialogOpen(true);
   };
 
-  // Save functions
+  // Form submission functions
   const saveCategory = () => {
     if (!categoryName.trim()) {
       toast({
@@ -409,211 +411,352 @@ const ManageParameters = () => {
       ...prev,
       [categoryId]: !prev[categoryId]
     }));
+
+    // If expanding, select this category
+    if (!expandedCategories[categoryId]) {
+      setSelectedCategory(categoryId);
+    }
   };
 
-  // Render subcategories based on category
-  const renderSubcategories = (categoryId: string) => {
-    if (!expandedCategories[categoryId]) return null;
+  // Get categories by type
+  const getCategoriesByType = (type: CategoryType) => {
+    return categories.filter(c => c.type === type);
+  };
 
-    const categorySubcategories = subcategories.filter(sub => sub.category_id === categoryId);
+  // Find category name by ID
+  const getCategoryName = (categoryId: string): string => {
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.name : "Unknown";
+  };
 
+  // Find subcategory name by ID
+  const getSubcategoryName = (subcategoryId: string): string => {
+    const subcategory = subcategories.find(s => s.id === subcategoryId);
+    return subcategory ? subcategory.name : "Unknown";
+  };
+
+  // Render the ESG structure view
+  const renderESGStructure = () => {
+    if (isESGStructureLoading) {
+      return (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      );
+    }
+
+    if (!structureLoaded) {
+      return (
+        <div className="p-4 text-center border rounded-md">
+          <p className="text-gray-500">No ESG parameters structure available.</p>
+          <p className="text-sm text-gray-400 mt-2">
+            Start by adding categories, subcategories, and parameters to build your ESG structure.
+          </p>
+        </div>
+      );
+    }
+
+    // Get the categories for the active tab type
+    const typeCategories = esgStructure?.[activeTab] || {};
+    
     return (
-      <div className="ml-6 my-2 border-l border-gray-200 pl-4">
-        {categorySubcategories.length > 0 ? (
-          categorySubcategories.map(subcategory => (
-            <div 
-              key={subcategory.id} 
-              className="py-2 flex items-center justify-between hover:bg-gray-50 rounded-md px-2"
-              onClick={() => setSelectedSubcategory(subcategory.id)}
-            >
-              <span className="text-sm font-medium">{subcategory.name}</span>
-              <div className="flex space-x-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    editSubcategory(subcategory);
-                  }}
-                >
-                  <Edit2 size={16} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteSubcategoryMutation.mutate(subcategory.id);
-                  }}
-                >
-                  <Trash2 size={16} />
-                </Button>
-              </div>
-            </div>
+      <div className="space-y-4">
+        {Object.entries(typeCategories).length > 0 ? (
+          Object.entries(typeCategories).map(([categoryName, subcategories]) => (
+            <Card key={categoryName} className="overflow-hidden">
+              <CardHeader className="bg-muted/50 py-3">
+                <CardTitle className="text-lg flex justify-between items-center">
+                  <span>{categoryName}</span>
+                  <Badge variant="outline" className="capitalize">
+                    {activeTab}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {Object.entries(subcategories).length > 0 ? (
+                  <div className="divide-y">
+                    {Object.entries(subcategories).map(([subcategoryName, { parameters }]) => (
+                      <div key={subcategoryName} className="py-3 px-4">
+                        <h4 className="font-medium text-sm mb-2">{subcategoryName}</h4>
+                        <div className="pl-4 space-y-1">
+                          {parameters.length > 0 ? (
+                            parameters.map(param => (
+                              <div key={param.id} className="flex justify-between text-sm">
+                                <span>{param.name}</span>
+                                {param.unit && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {param.unit}
+                                  </Badge>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500">No parameters</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="p-4 text-gray-500 text-sm">No subcategories</p>
+                )}
+              </CardContent>
+            </Card>
           ))
         ) : (
-          <div className="py-2 text-sm text-gray-500">No subcategories found</div>
+          <p className="text-center py-4 text-gray-500">
+            No {activeTab} categories found
+          </p>
         )}
       </div>
     );
   };
 
-  // Render categories with subcategories
-  const renderCategoriesWithSubcategories = () => {
-    if (isCategoriesLoading) {
-      return (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-        </div>
-      );
-    }
-
-    const categoryTypeGroups: Record<CategoryType, Category[]> = {
-      environmental: categories.filter(c => c.type === 'environmental'),
-      social: categories.filter(c => c.type === 'social'),
-      governance: categories.filter(c => c.type === 'governance')
-    };
+  // Render the management interface
+  const renderManagementInterface = () => {
+    const categoriesForActiveTab = getCategoriesByType(activeTab);
 
     return (
-      <div className="space-y-6">
-        {Object.entries(categoryTypeGroups).map(([type, cats]) => (
-          <div key={type} className="space-y-2">
-            <h3 className="font-medium text-lg capitalize">{type}</h3>
-            <div className="border rounded-md">
-              {cats.length > 0 ? (
-                cats.map(category => (
-                  <div key={category.id} className="border-b last:border-b-0">
-                    <div 
-                      className="p-3 flex items-center justify-between hover:bg-gray-50 cursor-pointer"
-                      onClick={() => {
-                        setSelectedCategory(category.id);
-                        toggleCategoryExpansion(category.id);
-                      }}
-                    >
-                      <div className="flex items-center">
-                        {expandedCategories[category.id] ? (
-                          <ChevronDown size={18} className="mr-2 text-gray-500" />
-                        ) : (
-                          <ChevronRight size={18} className="mr-2 text-gray-500" />
-                        )}
-                        <span className="font-medium">{category.name}</span>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            editCategory(category);
-                          }}
-                        >
-                          <Edit2 size={16} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteCategory(category.id);
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    </div>
-                    {renderSubcategories(category.id)}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Categories and Subcategories Column */}
+        <div className="lg:col-span-5 xl:col-span-4 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-medium">Categories & Subcategories</h3>
+            <Button size="sm" variant="outline" className="gap-1" onClick={() => {
+              setCategoryType(activeTab);
+              setIsCategoryDialogOpen(true);
+            }}>
+              <Plus size={16} /> Add Category
+            </Button>
+          </div>
+
+          <Card>
+            <ScrollArea className="h-[calc(100vh-350px)]">
+              <div className="p-4 space-y-2">
+                {isCategoriesLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                   </div>
-                ))
-              ) : (
-                <div className="p-4 text-center text-gray-500">
-                  No categories found for this type
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // Render parameters table based on selected subcategory
-  const renderParametersTable = () => {
-    if (!selectedSubcategory) {
-      return (
-        <div className="text-center py-8 text-gray-500">
-          Please select a subcategory to view its parameters
-        </div>
-      );
-    }
-
-    if (isParametersLoading) {
-      return (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-        </div>
-      );
-    }
-
-    const selectedSubcategoryObj = subcategories.find(s => s.id === selectedSubcategory);
-    const selectedCategoryObj = categories.find(c => c.id === selectedSubcategoryObj?.category_id);
-
-    return (
-      <div>
-        {selectedCategoryObj && selectedSubcategoryObj && (
-          <div className="bg-gray-50 p-4 rounded-md mb-4">
-            <div className="text-sm text-gray-500">Selected</div>
-            <div className="font-medium">{selectedCategoryObj.name} / {selectedSubcategoryObj.name}</div>
-          </div>
-        )}
-        
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {parameters.length > 0 ? (
-              parameters.map(parameter => (
-                <TableRow key={parameter.id}>
-                  <TableCell className="font-medium">{parameter.name}</TableCell>
-                  <TableCell>{parameter.unit || "-"}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => editParameter(parameter)}
+                ) : categoriesForActiveTab.length > 0 ? (
+                  categoriesForActiveTab.map(category => (
+                    <div key={category.id} className="border rounded-md overflow-hidden">
+                      <div 
+                        className="p-3 flex items-center justify-between hover:bg-muted/40 cursor-pointer"
+                        onClick={() => toggleCategoryExpansion(category.id)}
                       >
-                        <Edit2 size={16} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteParameterMutation.mutate(parameter.id)}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
+                        <div className="flex items-center">
+                          {expandedCategories[category.id] ? (
+                            <ChevronDown size={18} className="mr-2 text-gray-500" />
+                          ) : (
+                            <ChevronRight size={18} className="mr-2 text-gray-500" />
+                          )}
+                          <span className="font-medium">{category.name}</span>
+                        </div>
+                        <div className="flex space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              editCategory(category);
+                            }}
+                          >
+                            <Edit2 size={14} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteCategoryMutation.mutate(category.id);
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Subcategories */}
+                      {expandedCategories[category.id] && (
+                        <div className="bg-muted/20 border-t">
+                          <div className="flex justify-between items-center px-3 py-2 border-b">
+                            <span className="text-sm text-muted-foreground">Subcategories</span>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setSubcategoryCategoryId(category.id);
+                                setIsSubcategoryDialogOpen(true);
+                              }}
+                            >
+                              <Plus size={14} className="mr-1" /> Add
+                            </Button>
+                          </div>
+
+                          <div className="p-2">
+                            {isSubcategoriesLoading && selectedCategory === category.id ? (
+                              <div className="flex justify-center py-2">
+                                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                              </div>
+                            ) : (
+                              <>
+                                {subcategories
+                                  .filter(sub => sub.category_id === category.id)
+                                  .map(subcategory => (
+                                    <div 
+                                      key={subcategory.id} 
+                                      className={`
+                                        p-2 flex items-center justify-between rounded-md
+                                        ${selectedSubcategory === subcategory.id ? 'bg-primary/10' : 'hover:bg-muted/60'}
+                                        cursor-pointer text-sm
+                                      `}
+                                      onClick={() => setSelectedSubcategory(subcategory.id)}
+                                    >
+                                      <span>{subcategory.name}</span>
+                                      <div className="flex space-x-1">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            editSubcategory(subcategory);
+                                          }}
+                                        >
+                                          <Edit2 size={12} />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteSubcategoryMutation.mutate(subcategory.id);
+                                          }}
+                                        >
+                                          <Trash2 size={12} />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                {subcategories.filter(sub => sub.category_id === category.id).length === 0 && (
+                                  <p className="text-center py-2 text-xs text-gray-500">
+                                    No subcategories found
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center py-4 text-gray-500">
-                  No parameters found for this subcategory
-                </TableCell>
-              </TableRow>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    No {activeTab} categories found
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </Card>
+        </div>
+
+        {/* Parameters Column */}
+        <div className="lg:col-span-7 xl:col-span-8 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-medium">Parameters</h3>
+            {selectedSubcategory && (
+              <Button 
+                size="sm" 
+                onClick={() => {
+                  const subcategory = subcategories.find(s => s.id === selectedSubcategory);
+                  if (subcategory) {
+                    setParameterSubcategoryId(subcategory.id);
+                    setParameterCategoryId(subcategory.category_id);
+                    setIsParameterDialogOpen(true);
+                  }
+                }}
+              >
+                <Plus size={16} className="mr-1" /> Add Parameter
+              </Button>
             )}
-          </TableBody>
-        </Table>
+          </div>
+
+          <Card>
+            <CardContent className="p-4">
+              {!selectedSubcategory ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Select a subcategory to manage its parameters</p>
+                </div>
+              ) : isParametersLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4 p-3 bg-muted/30 rounded-md">
+                    <p className="text-sm text-muted-foreground">Selected:</p>
+                    <p className="font-medium">
+                      {getCategoryName(subcategories.find(s => s.id === selectedSubcategory)?.category_id || '')} 
+                      {' '}/{' '}
+                      {getSubcategoryName(selectedSubcategory)}
+                    </p>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Parameter Name</TableHead>
+                        <TableHead>Unit</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {parameters.length > 0 ? (
+                        parameters.map(parameter => (
+                          <TableRow key={parameter.id}>
+                            <TableCell className="font-medium">{parameter.name}</TableCell>
+                            <TableCell>{parameter.unit || "-"}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => editParameter(parameter)}
+                                >
+                                  <Edit2 size={16} />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteParameterMutation.mutate(parameter.id)}
+                                >
+                                  <Trash2 size={16} />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-4 text-gray-500">
+                            No parameters found for this subcategory
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   };
 
-  // Handle subcategory list updates when category changes
+  // Handle category dialog subcategory list updates
   const handleCategoryChange = (categoryId: string) => {
     if (parameterCategoryId !== categoryId) {
       setParameterSubcategoryId("");
@@ -622,358 +765,250 @@ const ManageParameters = () => {
   };
 
   return (
-    <div className="container max-w-6xl mx-auto my-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container max-w-7xl mx-auto py-6 space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Manage Parameters</h1>
-          <p className="text-gray-500">Add and manage ESG parameters, categories, and subcategories</p>
+          <h1 className="text-2xl font-bold">ESG Parameter Management</h1>
+          <p className="text-muted-foreground">
+            Manage Environmental, Social, and Governance parameters for your ESG reporting
+          </p>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
-          <TabsTrigger value="parameters">Parameters</TabsTrigger>
-          <TabsTrigger value="categories">Categories</TabsTrigger>
-          <TabsTrigger value="subcategories">Subcategories</TabsTrigger>
-        </TabsList>
-
-        {/* Parameters Tab */}
-        <TabsContent value="parameters" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Parameter Management</h2>
-            <Dialog open={isParameterDialogOpen} onOpenChange={setIsParameterDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus size={16} />
-                  Add Parameter
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingParameterId ? "Edit Parameter" : "Add New Parameter"}</DialogTitle>
-                  <DialogDescription>
-                    {editingParameterId 
-                      ? "Update the parameter details." 
-                      : "Fill the form to add a new parameter."}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="parameter-name">Parameter Name</Label>
-                    <Input
-                      id="parameter-name"
-                      value={parameterName}
-                      onChange={(e) => setParameterName(e.target.value)}
-                      placeholder="Enter parameter name"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="parameter-unit">Unit (Optional)</Label>
-                    <Input
-                      id="parameter-unit"
-                      value={parameterUnit}
-                      onChange={(e) => setParameterUnit(e.target.value)}
-                      placeholder="e.g., kWh, kg, etc."
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="parameter-category">Category</Label>
-                    <Select 
-                      value={parameterCategoryId} 
-                      onValueChange={handleCategoryChange}
-                    >
-                      <SelectTrigger id="parameter-category">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(category => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="parameter-subcategory">Subcategory</Label>
-                    <Select 
-                      value={parameterSubcategoryId} 
-                      onValueChange={setParameterSubcategoryId}
-                      disabled={!parameterCategoryId}
-                    >
-                      <SelectTrigger id="parameter-subcategory">
-                        <SelectValue placeholder="Select subcategory" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {subcategories
-                          .filter(sub => sub.category_id === parameterCategoryId)
-                          .map(subcategory => (
-                            <SelectItem key={subcategory.id} value={subcategory.id}>
-                              {subcategory.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={resetParameterForm}>
-                    Cancel
-                  </Button>
-                  <Button onClick={saveParameter} disabled={parameterMutation.isPending}>
-                    {parameterMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    {editingParameterId ? "Update Parameter" : "Add Parameter"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as CategoryType)} className="space-y-6">
+        <div className="flex justify-between items-center">
+          <TabsList>
+            <TabsTrigger value="environmental">Environmental</TabsTrigger>
+            <TabsTrigger value="social">Social</TabsTrigger>
+            <TabsTrigger value="governance">Governance</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['esg-parameters'] })}>
+              <Loader2 size={16} className="mr-2" /> Refresh
+            </Button>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="border rounded-md p-4 space-y-4 md:col-span-1">
-              <h3 className="font-medium">Categories & Subcategories</h3>
-              <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                {renderCategoriesWithSubcategories()}
-              </div>
-            </div>
-            <div className="border rounded-md p-4 md:col-span-2">
-              <h3 className="font-medium mb-4">Parameters</h3>
-              {renderParametersTable()}
-            </div>
-          </div>
+        {/* Tab Content */}
+        <TabsContent value="environmental" className="space-y-6 mt-6">
+          {renderManagementInterface()}
         </TabsContent>
-
-        {/* Categories Tab */}
-        <TabsContent value="categories" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Category Management</h2>
-            <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus size={16} />
-                  Add Category
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingCategoryId ? "Edit Category" : "Add New Category"}</DialogTitle>
-                  <DialogDescription>
-                    {editingCategoryId 
-                      ? "Update the category details." 
-                      : "Fill the form to add a new category."}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="category-name">Category Name</Label>
-                    <Input
-                      id="category-name"
-                      value={categoryName}
-                      onChange={(e) => setCategoryName(e.target.value)}
-                      placeholder="Enter category name"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="category-type">Type</Label>
-                    <Select value={categoryType} onValueChange={(value: CategoryType) => setCategoryType(value)}>
-                      <SelectTrigger id="category-type">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="environmental">Environmental</SelectItem>
-                        <SelectItem value="social">Social</SelectItem>
-                        <SelectItem value="governance">Governance</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={resetCategoryForm}>
-                    Cancel
-                  </Button>
-                  <Button onClick={saveCategory} disabled={categoryMutation.isPending}>
-                    {categoryMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    {editingCategoryId ? "Update Category" : "Add Category"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isCategoriesLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-4">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-gray-400" />
-                    </TableCell>
-                  </TableRow>
-                ) : categories.length > 0 ? (
-                  categories.map(category => (
-                    <TableRow key={category.id}>
-                      <TableCell className="font-medium">{category.name}</TableCell>
-                      <TableCell className="capitalize">{category.type}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => editCategory(category)}
-                          >
-                            <Edit2 size={16} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteCategoryMutation.mutate(category.id)}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-4 text-gray-500">
-                      No categories found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+        
+        <TabsContent value="social" className="space-y-6 mt-6">
+          {renderManagementInterface()}
         </TabsContent>
-
-        {/* Subcategories Tab */}
-        <TabsContent value="subcategories" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Subcategory Management</h2>
-            <Dialog open={isSubcategoryDialogOpen} onOpenChange={setIsSubcategoryDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus size={16} />
-                  Add Subcategory
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingSubcategoryId ? "Edit Subcategory" : "Add New Subcategory"}</DialogTitle>
-                  <DialogDescription>
-                    {editingSubcategoryId 
-                      ? "Update the subcategory details." 
-                      : "Fill the form to add a new subcategory."}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="subcategory-name">Subcategory Name</Label>
-                    <Input
-                      id="subcategory-name"
-                      value={subcategoryName}
-                      onChange={(e) => setSubcategoryName(e.target.value)}
-                      placeholder="Enter subcategory name"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="subcategory-category">Category</Label>
-                    <Select value={subcategoryCategoryId} onValueChange={setSubcategoryCategoryId}>
-                      <SelectTrigger id="subcategory-category">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(category => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={resetSubcategoryForm}>
-                    Cancel
-                  </Button>
-                  <Button onClick={saveSubcategory} disabled={subcategoryMutation.isPending}>
-                    {subcategoryMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    {editingSubcategoryId ? "Update Subcategory" : "Add Subcategory"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isSubcategoriesLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-4">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-gray-400" />
-                    </TableCell>
-                  </TableRow>
-                ) : subcategories.length > 0 ? (
-                  subcategories.map(subcategory => {
-                    const category = categories.find(c => c.id === subcategory.category_id);
-                    return (
-                      <TableRow key={subcategory.id}>
-                        <TableCell className="font-medium">{subcategory.name}</TableCell>
-                        <TableCell>{category?.name || "Unknown Category"}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => editSubcategory(subcategory)}
-                            >
-                              <Edit2 size={16} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteSubcategoryMutation.mutate(subcategory.id)}
-                            >
-                              <Trash2 size={16} />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-4 text-gray-500">
-                      No subcategories found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+        
+        <TabsContent value="governance" className="space-y-6 mt-6">
+          {renderManagementInterface()}
         </TabsContent>
       </Tabs>
+
+      {/* View Current Structure */}
+      <div className="mt-8 pt-6 border-t">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Current ESG Structure</h2>
+        </div>
+        {renderESGStructure()}
+      </div>
+
+      {/* Category Dialog */}
+      <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingCategoryId ? "Edit Category" : "Add New Category"}</DialogTitle>
+            <DialogDescription>
+              {editingCategoryId 
+                ? "Update the category details." 
+                : "Fill the form to add a new category."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="category-name">Category Name</Label>
+              <Input
+                id="category-name"
+                value={categoryName}
+                onChange={(e) => setCategoryName(e.target.value)}
+                placeholder="Enter category name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="category-type">Type</Label>
+              <Select value={categoryType} onValueChange={(value: CategoryType) => setCategoryType(value)}>
+                <SelectTrigger id="category-type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="environmental">Environmental</SelectItem>
+                  <SelectItem value="social">Social</SelectItem>
+                  <SelectItem value="governance">Governance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetCategoryForm}>
+              Cancel
+            </Button>
+            <Button onClick={saveCategory} disabled={categoryMutation.isPending}>
+              {categoryMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {editingCategoryId ? "Update" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Subcategory Dialog */}
+      <Dialog open={isSubcategoryDialogOpen} onOpenChange={setIsSubcategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingSubcategoryId ? "Edit Subcategory" : "Add New Subcategory"}</DialogTitle>
+            <DialogDescription>
+              {editingSubcategoryId 
+                ? "Update the subcategory details." 
+                : "Fill the form to add a new subcategory."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="subcategory-name">Subcategory Name</Label>
+              <Input
+                id="subcategory-name"
+                value={subcategoryName}
+                onChange={(e) => setSubcategoryName(e.target.value)}
+                placeholder="Enter subcategory name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="subcategory-category">Category</Label>
+              <Select value={subcategoryCategoryId} onValueChange={setSubcategoryCategoryId}>
+                <SelectTrigger id="subcategory-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* Only show categories of the active tab type */}
+                  {categories
+                    .filter(c => c.type === activeTab)
+                    .map(category => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetSubcategoryForm}>
+              Cancel
+            </Button>
+            <Button onClick={saveSubcategory} disabled={subcategoryMutation.isPending}>
+              {subcategoryMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {editingSubcategoryId ? "Update" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Parameter Dialog */}
+      <Dialog open={isParameterDialogOpen} onOpenChange={setIsParameterDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingParameterId ? "Edit Parameter" : "Add New Parameter"}</DialogTitle>
+            <DialogDescription>
+              {editingParameterId 
+                ? "Update the parameter details." 
+                : "Fill the form to add a new parameter."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="parameter-name">Parameter Name</Label>
+              <Input
+                id="parameter-name"
+                value={parameterName}
+                onChange={(e) => setParameterName(e.target.value)}
+                placeholder="Enter parameter name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="parameter-unit">Unit (Optional)</Label>
+              <Input
+                id="parameter-unit"
+                value={parameterUnit}
+                onChange={(e) => setParameterUnit(e.target.value)}
+                placeholder="e.g., kWh, kg, etc."
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="parameter-category">Category</Label>
+              <Select 
+                value={parameterCategoryId} 
+                onValueChange={handleCategoryChange}
+              >
+                <SelectTrigger id="parameter-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* Only show categories of the active tab type */}
+                  {categories
+                    .filter(c => c.type === activeTab)
+                    .map(category => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="parameter-subcategory">Subcategory</Label>
+              <Select 
+                value={parameterSubcategoryId} 
+                onValueChange={setParameterSubcategoryId}
+                disabled={!parameterCategoryId}
+              >
+                <SelectTrigger id="parameter-subcategory">
+                  <SelectValue placeholder="Select subcategory" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subcategories
+                    .filter(sub => sub.category_id === parameterCategoryId)
+                    .map(subcategory => (
+                      <SelectItem key={subcategory.id} value={subcategory.id}>
+                        {subcategory.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetParameterForm}>
+              Cancel
+            </Button>
+            <Button onClick={saveParameter} disabled={parameterMutation.isPending}>
+              {parameterMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {editingParameterId ? "Update" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
