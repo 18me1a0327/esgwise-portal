@@ -12,20 +12,11 @@ export interface Category {
   updated_at: string;
 }
 
-export interface Subcategory {
-  id: string;
-  name: string;
-  category_id: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Parameter {
   id: string;
   name: string;
   unit: string | null;
   category_id: string;
-  subcategory_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -33,9 +24,7 @@ export interface Parameter {
 export interface ESGParameterStructure {
   [categoryType: string]: {
     [categoryName: string]: {
-      [subcategoryName: string]: {
-        parameters: Parameter[];
-      }
+      parameters: Parameter[];
     }
   }
 }
@@ -114,60 +103,6 @@ export const deleteCategory = async (id: string): Promise<void> => {
   if (error) throw new Error(error.message);
 };
 
-// Subcategory functions
-export const fetchSubcategories = async (): Promise<Subcategory[]> => {
-  const { data, error } = await supabase
-    .from('subcategories')
-    .select('*')
-    .order('name');
-  
-  if (error) throw new Error(error.message);
-  return data || [];
-};
-
-export const fetchSubcategoriesByCategory = async (categoryId: string): Promise<Subcategory[]> => {
-  const { data, error } = await supabase
-    .from('subcategories')
-    .select('*')
-    .eq('category_id', categoryId)
-    .order('name');
-  
-  if (error) throw new Error(error.message);
-  return data || [];
-};
-
-export const createSubcategory = async (name: string, categoryId: string): Promise<Subcategory> => {
-  const { data, error } = await supabase
-    .from('subcategories')
-    .insert([{ name, category_id: categoryId }])
-    .select()
-    .single();
-  
-  if (error) throw new Error(error.message);
-  return data;
-};
-
-export const updateSubcategory = async (id: string, name: string, categoryId: string): Promise<Subcategory> => {
-  const { data, error } = await supabase
-    .from('subcategories')
-    .update({ name, category_id: categoryId })
-    .eq('id', id)
-    .select()
-    .single();
-  
-  if (error) throw new Error(error.message);
-  return data;
-};
-
-export const deleteSubcategory = async (id: string): Promise<void> => {
-  const { error } = await supabase
-    .from('subcategories')
-    .delete()
-    .eq('id', id);
-  
-  if (error) throw new Error(error.message);
-};
-
 // Parameter functions
 export const fetchParameters = async (): Promise<Parameter[]> => {
   const { data, error } = await supabase
@@ -179,11 +114,11 @@ export const fetchParameters = async (): Promise<Parameter[]> => {
   return data || [];
 };
 
-export const fetchParametersBySubcategory = async (subcategoryId: string): Promise<Parameter[]> => {
+export const fetchParametersByCategory = async (categoryId: string): Promise<Parameter[]> => {
   const { data, error } = await supabase
     .from('parameters')
     .select('*')
-    .eq('subcategory_id', subcategoryId)
+    .eq('category_id', categoryId)
     .order('name');
   
   if (error) throw new Error(error.message);
@@ -193,16 +128,14 @@ export const fetchParametersBySubcategory = async (subcategoryId: string): Promi
 export const createParameter = async (
   name: string, 
   unit: string | null, 
-  categoryId: string, 
-  subcategoryId: string
+  categoryId: string
 ): Promise<Parameter> => {
   const { data, error } = await supabase
     .from('parameters')
     .insert([{ 
       name, 
       unit, 
-      category_id: categoryId, 
-      subcategory_id: subcategoryId 
+      category_id: categoryId
     }])
     .select()
     .single();
@@ -215,16 +148,14 @@ export const updateParameter = async (
   id: string,
   name: string, 
   unit: string | null, 
-  categoryId: string, 
-  subcategoryId: string
+  categoryId: string
 ): Promise<Parameter> => {
   const { data, error } = await supabase
     .from('parameters')
     .update({ 
       name, 
       unit, 
-      category_id: categoryId, 
-      subcategory_id: subcategoryId 
+      category_id: categoryId
     })
     .eq('id', id)
     .select()
@@ -248,7 +179,6 @@ export const fetchESGParameterStructure = async (): Promise<ESGParameterStructur
   try {
     // Fetch all the required data
     const categories = await fetchCategories();
-    const subcategories = await fetchSubcategories();
     const parameters = await fetchParameters();
     
     // Initialize the structure with the three main ESG categories
@@ -266,20 +196,9 @@ export const fetchESGParameterStructure = async (): Promise<ESGParameterStructur
       }
       
       // Initialize this category in the structure
-      structure[category.type][category.name] = {};
-      
-      // Find subcategories for this category
-      const categorySubs = subcategories.filter(sub => sub.category_id === category.id);
-      
-      categorySubs.forEach(subcategory => {
-        // Add the subcategory with its parameters
-        structure[category.type][category.name][subcategory.name] = {
-          parameters: parameters.filter(param => 
-            param.category_id === category.id && 
-            param.subcategory_id === subcategory.id
-          )
-        };
-      });
+      structure[category.type][category.name] = {
+        parameters: parameters.filter(param => param.category_id === category.id)
+      };
     });
     
     console.log("ESG Parameter Structure loaded:", 
@@ -306,18 +225,16 @@ export const mapFormDataToParameters = (formData: Record<string, any>, parameter
   
   // Iterate through the form data and match with parameters
   Object.entries(formData).forEach(([key, value]) => {
-    // Find the parameter with matching name across all categories and subcategories
+    // Find the parameter with matching name across all categories
     for (const categoryType in parameterStructure) {
       for (const categoryName in parameterStructure[categoryType]) {
-        for (const subcategoryName in parameterStructure[categoryType][categoryName]) {
-          const { parameters } = parameterStructure[categoryType][categoryName][subcategoryName];
-          const parameter = findParameterByName(parameters, key);
-          
-          if (parameter) {
-            // Store using parameter id for database consistency
-            mappedData[parameter.id] = value;
-            break;
-          }
+        const { parameters } = parameterStructure[categoryType][categoryName];
+        const parameter = findParameterByName(parameters, key);
+        
+        if (parameter) {
+          // Store using parameter id for database consistency
+          mappedData[parameter.id] = value;
+          break;
         }
       }
     }

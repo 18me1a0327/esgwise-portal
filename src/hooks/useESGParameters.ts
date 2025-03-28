@@ -7,8 +7,7 @@ import { toast } from "@/hooks/use-toast";
  * Hook to fetch ESG parameters in a structured hierarchy:
  * - Category types (environmental, social, governance)
  *   - Categories
- *     - Subcategories
- *       - Parameters
+ *     - Parameters
  */
 export function useESGParameters() {
   return useQuery({
