@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 // Category types
@@ -250,7 +251,7 @@ export const fetchESGParameterStructure = async (): Promise<ESGParameterStructur
     const subcategories = await fetchSubcategories();
     const parameters = await fetchParameters();
     
-    // Create the structure
+    // Initialize the structure with the three main ESG categories
     const structure: ESGParameterStructure = {
       environmental: {},
       social: {},
@@ -259,16 +260,19 @@ export const fetchESGParameterStructure = async (): Promise<ESGParameterStructur
     
     // Group by category type first
     categories.forEach(category => {
+      // Ensure the category type exists in our structure
       if (!structure[category.type]) {
         structure[category.type] = {};
       }
       
+      // Initialize this category in the structure
       structure[category.type][category.name] = {};
       
       // Find subcategories for this category
       const categorySubs = subcategories.filter(sub => sub.category_id === category.id);
       
       categorySubs.forEach(subcategory => {
+        // Add the subcategory with its parameters
         structure[category.type][category.name][subcategory.name] = {
           parameters: parameters.filter(param => 
             param.category_id === category.id && 
@@ -277,6 +281,12 @@ export const fetchESGParameterStructure = async (): Promise<ESGParameterStructur
         };
       });
     });
+    
+    console.log("ESG Parameter Structure loaded:", 
+      Object.keys(structure.environmental).length, "environmental categories,",
+      Object.keys(structure.social).length, "social categories,",
+      Object.keys(structure.governance).length, "governance categories"
+    );
     
     return structure;
   } catch (error) {
