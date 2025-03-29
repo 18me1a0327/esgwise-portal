@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ApprovalStatus } from "@/types/esg";
 
@@ -10,8 +11,6 @@ export const createSubmission = async (
   socialData: any,
   governanceData: any
 ) => {
-  console.log("Creating submission with environmental data:", environmentalData);
-  
   // Begin a transaction by starting with the main submission
   const { data: submission, error: submissionError } = await supabase
     .from('esg_submissions')
@@ -45,8 +44,7 @@ export const createSubmission = async (
 
   if (envError) {
     console.error('Error adding environmental data:', envError);
-    console.error('Environmental data attempted to submit:', environmentalData);
-    throw new Error('Failed to add environmental data: ' + envError.message);
+    throw new Error('Failed to add environmental data');
   }
 
   // Add social data
@@ -232,18 +230,6 @@ export const fetchSubmissionDetails = async (submissionId: string) => {
   if (envError && envError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
     console.error('Error fetching environmental data:', envError);
     throw new Error('Failed to fetch environmental data');
-  }
-
-  // Log the environmental data to check for fugitive emissions values
-  if (environmentalData) {
-    console.log("Fetched environmental data with fugitive emissions:", {
-      r22: environmentalData.r22_refrigerant,
-      r32: environmentalData.r32_refrigerant,
-      r410: environmentalData.r410_refrigerant,
-      r134a: environmentalData.r134a_refrigerant,
-      r514a: environmentalData.r514a_refrigerant,
-      co2: environmentalData.co2_refilled
-    });
   }
 
   // Fetch social data

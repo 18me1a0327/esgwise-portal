@@ -312,7 +312,7 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
         scope1: 0,
         scope2: 0,
         scope3: 0,
-        fugitiveEmissions: 0,
+        fugitiveEmissions: 0, // Add fugitive emissions tracking
         total: 0
       });
     }
@@ -321,8 +321,8 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
     monthData.scope1 += scope1;
     monthData.scope2 += scope2;
     monthData.scope3 += scope3;
-    monthData.fugitiveEmissions += fugitiveEmissions;
-    monthData.total += scope1 + scope2 + scope3 + fugitiveEmissions;
+    monthData.fugitiveEmissions += fugitiveEmissions; // Add fugitive emissions
+    monthData.total += scope1 + scope2 + scope3 + fugitiveEmissions; // Include fugitive emissions in total
   });
 
   // Convert maps to arrays and sort chronologically
@@ -375,17 +375,13 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
   }, {});
 
   // Add processing for fugitive emissions data
-  const fugitiveEmissionsData = (environmentalData || []).reduce((acc, item) => {
+  const fugitiveEmissionsData = Array.from(environmentalData || []).reduce((acc, item) => {
     const r22 = Number(item.r22_refrigerant) || 0;
     const r32 = Number(item.r32_refrigerant) || 0;
     const r410 = Number(item.r410_refrigerant) || 0;
     const r134a = Number(item.r134a_refrigerant) || 0;
     const r514a = Number(item.r514a_refrigerant) || 0;
     const co2Refilled = Number(item.co2_refilled) || 0;
-    
-    console.log("Processing fugitive emissions data:", {
-      r22, r32, r410, r134a, r514a, co2Refilled
-    });
     
     return {
       r22: acc.r22 + r22,
@@ -410,7 +406,7 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
       wasteData: wasteData.length,
       carbonEmissionsData: carbonEmissionsData.length
     },
-    fugitiveEmissionsData // Log fugitive emissions data
+    fugitiveEmissionsData // Log new fugitive emissions data
   });
 
   return {
@@ -425,7 +421,7 @@ export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") 
       wasteData,
       carbonEmissionsData
     },
-    fugitiveEmissionsData,
+    fugitiveEmissionsData, // Add fugitive emissions data to the return object
     environmentalData,
     socialData,
     governanceData,
