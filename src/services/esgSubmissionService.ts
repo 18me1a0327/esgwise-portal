@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ApprovalStatus } from "@/types/esg";
 
@@ -35,16 +34,6 @@ export const createSubmission = async (
   if (!submissionId) {
     throw new Error('No submission ID returned');
   }
-
-  // Log refrigerant data before submission
-  console.log("Submitting refrigerant data:", {
-    r22: environmentalData.r22_refrigerant,
-    r32: environmentalData.r32_refrigerant,
-    r410: environmentalData.r410_refrigerant,
-    r134a: environmentalData.r134a_refrigerant,
-    r514a: environmentalData.r514a_refrigerant,
-    co2: environmentalData.co2_refilled
-  });
 
   // Add environmental data
   const { error: envError } = await supabase
@@ -120,16 +109,6 @@ export const saveAsDraft = async (
   if (!submissionId) {
     throw new Error('No submission ID returned');
   }
-
-  // Log refrigerant data before draft save
-  console.log("Saving refrigerant data as draft:", {
-    r22: environmentalData.r22_refrigerant,
-    r32: environmentalData.r32_refrigerant,
-    r410: environmentalData.r410_refrigerant,
-    r134a: environmentalData.r134a_refrigerant,
-    r514a: environmentalData.r514a_refrigerant,
-    co2: environmentalData.co2_refilled
-  });
 
   // Add environmental data
   const { error: envError } = await supabase
