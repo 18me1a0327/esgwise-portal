@@ -60,6 +60,9 @@ export const fetchDashboardData = async (siteId: string = "all", timeframe: stri
       fetchGovernanceData(submissionIds)
     ]);
     
+    // Log received data for debugging
+    console.log('Environmental data received:', environmentalData);
+    
     // Process data for charts
     const processedChartData = processChartData(environmentalData, submissions);
     
