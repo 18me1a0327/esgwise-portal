@@ -408,6 +408,8 @@ const FormEntry = () => {
       return;
     }
     
+    console.log("Submitting form data:", formData);
+    
     submitMutation.mutate(false);
   };
 
@@ -434,11 +436,12 @@ const FormEntry = () => {
   };
 
   const updateFormData = (category: 'environmental' | 'social' | 'governance', id: string, value: string) => {
+    console.log(`Updating ${category} - ${id} with value: ${value}`);
     setFormData(prev => ({
       ...prev,
       [category]: {
         ...prev[category],
-        [id]: value === '' ? null : Number(value)
+        [id]: value === '' ? undefined : Number(value)
       }
     }));
   };

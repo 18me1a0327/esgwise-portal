@@ -34,12 +34,12 @@ const FugitiveEmissionsChart: React.FC<FugitiveEmissionsChartProps> = ({ data })
 
   // Format data for bar chart
   const barData = [
-    { name: 'R22', value: data.r22 },
-    { name: 'R32', value: data.r32 },
-    { name: 'R410', value: data.r410 },
-    { name: 'R134A', value: data.r134a },
-    { name: 'R514A', value: data.r514a },
-    { name: 'CO2 Refilled', value: data.co2Refilled }
+    { name: 'R22', value: data.r22 || 0 },
+    { name: 'R32', value: data.r32 || 0 },
+    { name: 'R410', value: data.r410 || 0 },
+    { name: 'R134A', value: data.r134a || 0 },
+    { name: 'R514A', value: data.r514a || 0 },
+    { name: 'CO2 Refilled', value: data.co2Refilled || 0 }
   ];
 
   // Format data for pie chart
@@ -47,11 +47,11 @@ const FugitiveEmissionsChart: React.FC<FugitiveEmissionsChartProps> = ({ data })
 
   // Calculate GWP (Global Warming Potential) for each refrigerant
   const gwpValues = {
-    R22: 1810,
-    R32: 675,
-    R410: 2088,
-    R134A: 1430,
-    R514A: 2,
+    'R22': 1810,
+    'R32': 675,
+    'R410': 2088,
+    'R134A': 1430,
+    'R514A': 2,
     'CO2 Refilled': 1
   };
 
@@ -71,7 +71,7 @@ const FugitiveEmissionsChart: React.FC<FugitiveEmissionsChartProps> = ({ data })
         <div className="bg-gray-50 p-3 rounded flex justify-between items-center">
           <div>
             <p className="text-sm text-gray-500">Total Refrigerants</p>
-            <p className="text-2xl font-bold">{data.total.toFixed(1)} kg</p>
+            <p className="text-2xl font-bold">{(data.total || 0).toFixed(1)} kg</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Emissions Impact</p>
@@ -95,8 +95,8 @@ const FugitiveEmissionsChart: React.FC<FugitiveEmissionsChartProps> = ({ data })
           </ResponsiveContainer>
         </div>
 
-        <div className="flex justify-between mt-4">
-          <div className="w-1/2">
+        <div className="flex flex-col md:flex-row justify-between mt-4 gap-4">
+          <div className="w-full md:w-1/2">
             <h4 className="text-sm font-medium mb-2 text-center">Refrigerant Distribution</h4>
             <div className="h-[150px]">
               {pieData.length > 0 ? (
@@ -128,15 +128,20 @@ const FugitiveEmissionsChart: React.FC<FugitiveEmissionsChartProps> = ({ data })
             </div>
           </div>
           
-          <div className="w-1/2">
+          <div className="w-full md:w-1/2">
             <h4 className="text-sm font-medium mb-2 text-center">GWP Impact (tCO2e)</h4>
             <div className="grid grid-cols-2 gap-2">
-              {gwpData.map((item, index) => (
+              {gwpData.filter(item => item.value > 0).map((item, index) => (
                 <div key={index} className="bg-gray-50 p-2 rounded text-center">
                   <p className="text-xs text-gray-500">{item.name}</p>
                   <p className="text-sm font-medium">{item.gwpValue.toFixed(1)} tCO2e</p>
                 </div>
               ))}
+              {gwpData.filter(item => item.value > 0).length === 0 && (
+                <div className="col-span-2 text-center text-gray-400 py-4">
+                  No GWP impact data available
+                </div>
+              )}
             </div>
           </div>
         </div>
