@@ -1,434 +1,276 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export const fetchDashboardData = async (siteId = "all", timeframe = "quarter") => {
-  // Determine date range based on timeframe
-  const now = new Date();
-  let startDate = new Date();
+export const fetchDashboardData = async (siteId: string = "all", timeframe: string = "quarter") => {
+  console.log(`Fetching dashboard data for site: ${siteId}, timeframe: ${timeframe}`);
   
-  if (timeframe === "quarter") {
-    startDate.setMonth(now.getMonth() - 3);
-  } else if (timeframe === "year") {
-    startDate.setFullYear(now.getFullYear() - 1);
-  } else if (timeframe === "month") {
-    startDate.setMonth(now.getMonth() - 1);
-  } else if (timeframe === "custom") {
-    // For custom, we'll use last 6 months as default
-    startDate.setMonth(now.getMonth() - 6);
-  }
-  
-  const startDateStr = startDate.toISOString().split('T')[0];
-
-  // Build site filter condition
-  let siteFilter = {};
-  if (siteId !== "all") {
-    siteFilter = { site_id: siteId };
-  }
-
-  // Fetch approved submissions with date and site filtering
-  const { data: submissions, error: submissionsError } = await supabase
-    .from('esg_submissions')
-    .select(`
-      id,
-      site_id,
-      period_start,
-      period_end,
-      sites(name)
-    `)
-    .eq('status', 'approved')
-    .gte('period_end', startDateStr)
-    .match(siteFilter)
-    .order('period_end', { ascending: true });
-
-  if (submissionsError) {
-    console.error('Error fetching approved submissions:', submissionsError);
-    throw new Error('Failed to fetch approved submissions');
-  }
-
-  // If no approved submissions, return empty data
-  if (!submissions || submissions.length === 0) {
-    return {
-      totalSubmissions: 0,
-      totalEmissions: 0,
-      renewablePercentage: 0,
-      siteStats: [],
-      environmentalData: [],
-      socialData: [],
-      governanceData: [],
-      emissionFactors: [],
-      chartData: {
-        energyData: [],
-        emissionsData: [],
-        waterData: [],
-        wasteData: [],
-        carbonEmissionsData: []
-      }
-    };
-  }
-
-  // Fetch environmental data for approved submissions
-  const { data: environmentalData, error: envError } = await supabase
-    .from('environmental_data')
-    .select(`
-      *,
-      submission:esg_submissions(
+  try {
+    // Calculate date range based on timeframe
+    const endDate = new Date();
+    let startDate = new Date();
+    
+    if (timeframe === "quarter") {
+      startDate.setMonth(endDate.getMonth() - 3);
+    } else if (timeframe === "year") {
+      startDate.setFullYear(endDate.getFullYear() - 1);
+    } else if (timeframe === "custom") {
+      // For now, default to 6 months for custom
+      startDate.setMonth(endDate.getMonth() - 6);
+    }
+    
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    
+    // Base query for approved submissions in the date range
+    let query = supabase
+      .from('esg_submissions')
+      .select(`
         id,
-        site_id,
         period_start,
         period_end,
-        sites(name)
-      )
-    `)
-    .in('submission_id', submissions?.map(s => s.id) || []);
-
-  if (envError) {
-    console.error('Error fetching environmental data:', envError);
-    throw new Error('Failed to fetch environmental data');
-  }
-
-  // Fetch social data for approved submissions
-  const { data: socialData, error: socialError } = await supabase
-    .from('social_data')
-    .select(`
-      *,
-      submission:esg_submissions(
-        id,
-        site_id,
-        period_start,
-        period_end,
-        sites(name)
-      )
-    `)
-    .in('submission_id', submissions?.map(s => s.id) || []);
-
-  if (socialError) {
-    console.error('Error fetching social data:', socialError);
-    throw new Error('Failed to fetch social data');
-  }
-
-  // Fetch governance data for approved submissions
-  const { data: governanceData, error: govError } = await supabase
-    .from('governance_data')
-    .select(`
-      *,
-      submission:esg_submissions(
-        id,
-        site_id,
-        period_start,
-        period_end,
-        sites(name)
-      )
-    `)
-    .in('submission_id', submissions?.map(s => s.id) || []);
-
-  if (govError) {
-    console.error('Error fetching governance data:', govError);
-    throw new Error('Failed to fetch governance data');
-  }
-
-  // Get emission factors
-  const { data: emissionFactors, error: factorsError } = await supabase
-    .from('emission_factors')
-    .select('*');
-
-  if (factorsError) {
-    console.error('Error fetching emission factors:', factorsError);
-    throw new Error('Failed to fetch emission factors');
-  }
-
-  // Aggregated statistics
-  const totalSubmissions = submissions?.length || 0;
-  
-  // Calculate total emissions across all sites
-  const totalEmissions = environmentalData?.reduce((sum, item) => 
-    sum + (Number(item.total_emissions) || 0), 0);
-  
-  // Calculate renewable percentage
-  const totalElectricity = environmentalData?.reduce((sum, item) => 
-    sum + (Number(item.total_electricity) || 0), 0);
-  
-  const renewableElectricity = environmentalData?.reduce((sum, item) => 
-    sum + (Number(item.renewable_ppa) || 0) + (Number(item.renewable_rooftop) || 0), 0);
-  
-  const renewablePercentage = totalElectricity > 0 
-    ? (renewableElectricity / totalElectricity) * 100 
-    : 0;
-
-  // Group data by month for charts
-  const monthlyDataMap = new Map();
-  const monthlyEmissionsMap = new Map();
-  const monthlyWaterMap = new Map();
-  const monthlyWasteMap = new Map();
-  const monthlyCarbonMap = new Map();
-  
-  // Helper function to get month key (format: YYYY-MM)
-  const getMonthKey = (dateStr) => {
-    const date = new Date(dateStr);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-  };
-
-  // Helper function to get display date (format: Month'YY)
-  const getDisplayDate = (monthKey) => {
-    const [year, month] = monthKey.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-    const monthAbbr = date.toLocaleString('default', { month: 'short' });
-    const yearShort = date.getFullYear().toString().slice(2);
-    return `${monthAbbr}'${yearShort}`;
-  };
-
-  // Process energy data grouped by month
-  environmentalData?.forEach(item => {
-    const monthKey = getMonthKey(item.submission.period_end);
+        sites(id, name)
+      `)
+      .eq('status', 'approved')
+      .gte('period_start', startDateStr)
+      .lte('period_end', endDateStr);
     
-    if (!monthlyDataMap.has(monthKey)) {
-      monthlyDataMap.set(monthKey, {
-        date: monthKey,
-        displayDate: getDisplayDate(monthKey),
-        totalElectricity: 0,
-        renewableEnergy: 0,
-        coal: 0,
-        fossilFuels: 0,
-        iRecs: 0 // Added I-RECs tracking
-      });
+    // Filter by site if not "all"
+    if (siteId !== "all") {
+      query = query.eq('site_id', siteId);
     }
     
-    const monthData = monthlyDataMap.get(monthKey);
-    monthData.totalElectricity += Number(item.total_electricity) || 0;
-    monthData.iRecs += Number(item.i_recs) || 0; // Track I-RECs
-    monthData.renewableEnergy += (Number(item.renewable_ppa) || 0) + (Number(item.renewable_rooftop) || 0);
-    monthData.coal += Number(item.coal_consumption) || 0;
-    monthData.fossilFuels += (Number(item.hsd_consumption) || 0) + 
-                            (Number(item.furnace_oil_consumption) || 0) + 
-                            (Number(item.petrol_consumption) || 0);
-  });
-
-  // Process emissions data grouped by month
-  environmentalData?.forEach(item => {
-    const monthKey = getMonthKey(item.submission.period_end);
+    const { data: submissions, error: submissionsError } = await query;
     
-    if (!monthlyEmissionsMap.has(monthKey)) {
-      monthlyEmissionsMap.set(monthKey, {
-        date: monthKey,
-        displayDate: getDisplayDate(monthKey),
-        NOx: 0,
-        SOx: 0,
-        PM: 0,
-        Others: 0
-      });
+    if (submissionsError) {
+      console.error('Error fetching submissions:', submissionsError);
+      throw submissionsError;
     }
     
-    const monthData = monthlyEmissionsMap.get(monthKey);
-    monthData.NOx += Number(item.nox) || 0;
-    monthData.SOx += Number(item.sox) || 0;
-    monthData.PM += Number(item.pm) || 0;
-    monthData.Others += (Number(item.pop) || 0) + (Number(item.voc) || 0) + (Number(item.hap) || 0);
-  });
-
-  // Process water data grouped by month
-  environmentalData?.forEach(item => {
-    const monthKey = getMonthKey(item.submission.period_end);
-    
-    if (!monthlyWaterMap.has(monthKey)) {
-      monthlyWaterMap.set(monthKey, {
-        date: monthKey,
-        displayDate: getDisplayDate(monthKey),
-        Withdrawal: 0,
-        ThirdParty: 0,
-        Rainwater: 0,
-        Recycled: 0,
-        Discharged: 0
-      });
-    }
-    
-    const monthData = monthlyWaterMap.get(monthKey);
-    monthData.Withdrawal += Number(item.water_withdrawal) || 0;
-    monthData.ThirdParty += Number(item.third_party_water) || 0;
-    monthData.Rainwater += Number(item.rainwater) || 0;
-    monthData.Recycled += Number(item.recycled_wastewater) || 0;
-    monthData.Discharged += Number(item.water_discharged) || 0;
-  });
-
-  // Process waste data grouped by month
-  environmentalData?.forEach(item => {
-    const monthKey = getMonthKey(item.submission.period_end);
-    
-    if (!monthlyWasteMap.has(monthKey)) {
-      monthlyWasteMap.set(monthKey, {
-        date: monthKey,
-        displayDate: getDisplayDate(monthKey),
-        Hazardous: 0,
-        NonHazardous: 0,
-        Plastic: 0,
-        EWaste: 0,
-        BioMedical: 0,
-        WasteOil: 0
-      });
-    }
-    
-    const monthData = monthlyWasteMap.get(monthKey);
-    monthData.Hazardous += Number(item.total_hazardous) || 0;
-    monthData.NonHazardous += Number(item.non_hazardous) || 0;
-    monthData.Plastic += Number(item.plastic_waste) || 0;
-    monthData.EWaste += Number(item.e_waste) || 0;
-    monthData.BioMedical += Number(item.bio_medical) || 0;
-    monthData.WasteOil += Number(item.waste_oil) || 0;
-  });
-
-  // Process carbon emissions data grouped by month, including fugitive emissions
-  environmentalData?.forEach(item => {
-    const monthKey = getMonthKey(item.submission.period_end);
-    
-    // Scope 1: Direct emissions from owned or controlled sources
-    const scope1 = (Number(item.coal_emissions) || 0) + 
-                  (Number(item.hsd_emissions) || 0) + 
-                  (Number(item.furnace_oil_emissions) || 0) + 
-                  (Number(item.petrol_emissions) || 0);
-    
-    // Scope 2: Indirect emissions from purchased electricity
-    // Using market-based calculation (subtracting I-RECs)
-    const scope2 = Number(item.electricity_emissions) || 0;
-    
-    // Fugitive emissions - converting to CO2 equivalents using GWP values
-    // These are approximate GWP (Global Warming Potential) values
-    const gwpR22 = 1810; // HCFC-22
-    const gwpR32 = 675;
-    const gwpR410 = 2088;
-    const gwpR134a = 1430;
-    const gwpR514a = 2;
-    
-    const fugitiveEmissions = 
-      ((Number(item.r22_refrigerant) || 0) * gwpR22 + 
-      (Number(item.r32_refrigerant) || 0) * gwpR32 + 
-      (Number(item.r410_refrigerant) || 0) * gwpR410 + 
-      (Number(item.r134a_refrigerant) || 0) * gwpR134a + 
-      (Number(item.r514a_refrigerant) || 0) * gwpR514a) / 1000; // Convert kg to metric tons
-    
-    // Scope 3: All other indirect emissions (estimated as 20% of scope 1+2 for this example)
-    const scope3 = (scope1 + scope2) * 0.2;
-    
-    if (!monthlyCarbonMap.has(monthKey)) {
-      monthlyCarbonMap.set(monthKey, {
-        date: monthKey,
-        displayDate: getDisplayDate(monthKey),
-        scope1: 0,
-        scope2: 0,
-        scope3: 0,
-        fugitiveEmissions: 0,
-        total: 0
-      });
-    }
-    
-    const monthData = monthlyCarbonMap.get(monthKey);
-    monthData.scope1 += scope1;
-    monthData.scope2 += scope2;
-    monthData.scope3 += scope3;
-    monthData.fugitiveEmissions += fugitiveEmissions;
-    monthData.total += scope1 + scope2 + scope3 + fugitiveEmissions;
-  });
-
-  // Convert maps to arrays and sort chronologically
-  const energyData = Array.from(monthlyDataMap.values())
-    .sort((a, b) => a.date.localeCompare(b.date));
-  
-  const emissionsData = Array.from(monthlyEmissionsMap.values())
-    .sort((a, b) => a.date.localeCompare(b.date));
-  
-  const waterData = Array.from(monthlyWaterMap.values())
-    .sort((a, b) => a.date.localeCompare(b.date));
-  
-  const wasteData = Array.from(monthlyWasteMap.values())
-    .sort((a, b) => a.date.localeCompare(b.date));
-  
-  const carbonEmissionsData = Array.from(monthlyCarbonMap.values())
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  // Fetch statistics by site
-  const siteStats = submissions?.reduce((acc, submission) => {
-    const siteId = submission.site_id;
-    
-    if (!acc[siteId]) {
-      acc[siteId] = {
-        siteId: siteId,
-        siteName: submission.sites?.name,
-        totalEmissions: 0,
-        waterConsumption: 0,
-        totalEmployees: 0
+    if (!submissions || submissions.length === 0) {
+      console.log('No approved submissions found for the selected criteria');
+      return {
+        chartData: {
+          energyData: [],
+          emissionsData: [],
+          waterData: [],
+          wasteData: [],
+          carbonEmissionsData: []
+        },
+        renewablePercentage: 0,
+        environmentalData: [],
+        socialData: [],
+        governanceData: [],
+        fugitiveEmissionsData: {
+          r22: 0,
+          r32: 0,
+          r410: 0,
+          r134a: 0,
+          r514a: 0,
+          co2Refilled: 0,
+          total: 0
+        }
       };
     }
     
-    const siteEnvData = environmentalData?.filter(data => 
-      data.submission.site_id === siteId);
+    // Extract submission IDs
+    const submissionIds = submissions.map(s => s.id);
     
-    const siteSocialData = socialData?.filter(data => 
-      data.submission.site_id === siteId);
+    // Fetch environmental data for these submissions
+    const { data: environmentalData, error: envError } = await supabase
+      .from('environmental_data')
+      .select('*')
+      .in('submission_id', submissionIds);
     
-    acc[siteId].totalEmissions += siteEnvData?.reduce((sum, item) => 
-      sum + (Number(item.total_emissions) || 0), 0) || 0;
-    
-    acc[siteId].waterConsumption += siteEnvData?.reduce((sum, item) => 
-      sum + (Number(item.water_withdrawal) || 0), 0) || 0;
-    
-    if (siteSocialData?.[0]?.total_employees) {
-      acc[siteId].totalEmployees = Math.max(acc[siteId].totalEmployees, siteSocialData[0].total_employees);
+    if (envError) {
+      console.error('Error fetching environmental data:', envError);
+      throw envError;
     }
     
-    return acc;
-  }, {});
-
-  // Add processing for fugitive emissions data
-  const fugitiveEmissionsData = (environmentalData || []).reduce((acc, item) => {
-    const r22 = Number(item.r22_refrigerant) || 0;
-    const r32 = Number(item.r32_refrigerant) || 0;
-    const r410 = Number(item.r410_refrigerant) || 0;
-    const r134a = Number(item.r134a_refrigerant) || 0;
-    const r514a = Number(item.r514a_refrigerant) || 0;
-    const co2Refilled = Number(item.co2_refilled) || 0;
+    // Fetch social data
+    const { data: socialData, error: socialError } = await supabase
+      .from('social_data')
+      .select(`
+        *,
+        submission:esg_submissions!inner(
+          id,
+          period_start,
+          period_end,
+          sites(id, name)
+        )
+      `)
+      .in('submission_id', submissionIds);
     
-    console.log("Processing fugitive emissions data:", {
-      r22, r32, r410, r134a, r514a, co2Refilled
+    if (socialError) {
+      console.error('Error fetching social data:', socialError);
+      throw socialError;
+    }
+    
+    // Fetch governance data
+    const { data: governanceData, error: govError } = await supabase
+      .from('governance_data')
+      .select('*')
+      .in('submission_id', submissionIds);
+    
+    if (govError) {
+      console.error('Error fetching governance data:', govError);
+      throw govError;
+    }
+    
+    // Process environmental data for charts
+    const processedChartData = processChartData(environmentalData, submissions);
+    
+    // Calculate renewable percentage
+    const totalElectricity = environmentalData.reduce((sum, item) => sum + (Number(item.total_electricity) || 0), 0);
+    const renewablePPA = environmentalData.reduce((sum, item) => sum + (Number(item.renewable_ppa) || 0), 0);
+    const renewableRooftop = environmentalData.reduce((sum, item) => sum + (Number(item.renewable_rooftop) || 0), 0);
+    
+    const renewablePercentage = totalElectricity > 0 
+      ? ((renewablePPA + renewableRooftop) / totalElectricity) * 100 
+      : 0;
+    
+    // Process fugitive emissions data
+    console.log("Processing fugitive emissions data from:", environmentalData);
+    
+    const fugitiveEmissionsData = {
+      r22: 0,
+      r32: 0,
+      r410: 0,
+      r134a: 0,
+      r514a: 0,
+      co2Refilled: 0,
+      total: 0
+    };
+    
+    environmentalData.forEach(item => {
+      fugitiveEmissionsData.r22 += Number(item.r22_refrigerant || 0);
+      fugitiveEmissionsData.r32 += Number(item.r32_refrigerant || 0);
+      fugitiveEmissionsData.r410 += Number(item.r410_refrigerant || 0);
+      fugitiveEmissionsData.r134a += Number(item.r134a_refrigerant || 0);
+      fugitiveEmissionsData.r514a += Number(item.r514a_refrigerant || 0);
+      fugitiveEmissionsData.co2Refilled += Number(item.co2_refilled || 0);
     });
     
+    // Calculate total
+    fugitiveEmissionsData.total = 
+      fugitiveEmissionsData.r22 + 
+      fugitiveEmissionsData.r32 + 
+      fugitiveEmissionsData.r410 + 
+      fugitiveEmissionsData.r134a + 
+      fugitiveEmissionsData.r514a + 
+      fugitiveEmissionsData.co2Refilled;
+    
+    console.log("Processed fugitive emissions data:", fugitiveEmissionsData);
+    
     return {
-      r22: acc.r22 + r22,
-      r32: acc.r32 + r32,
-      r410: acc.r410 + r410,
-      r134a: acc.r134a + r134a,
-      r514a: acc.r514a + r514a,
-      co2Refilled: acc.co2Refilled + co2Refilled,
-      total: acc.total + r22 + r32 + r410 + r134a + r514a + co2Refilled
+      chartData: processedChartData,
+      renewablePercentage,
+      environmentalData,
+      socialData,
+      governanceData,
+      fugitiveEmissionsData
     };
-  }, { r22: 0, r32: 0, r410: 0, r134a: 0, r514a: 0, co2Refilled: 0, total: 0 });
-
-  console.log('Dashboard data prepared:', { 
-    totalSubmissions, 
-    totalEmissions, 
-    renewablePercentage, 
-    siteStats: Object.values(siteStats).length,
-    chartData: {
-      energyData: energyData.length,
-      emissionsData: emissionsData.length,
-      waterData: waterData.length,
-      wasteData: wasteData.length,
-      carbonEmissionsData: carbonEmissionsData.length
-    },
-    fugitiveEmissionsData // Log fugitive emissions data
-  });
-
-  return {
-    totalSubmissions,
-    totalEmissions,
-    renewablePercentage,
-    siteStats: Object.values(siteStats) || [],
-    chartData: {
-      energyData,
-      emissionsData,
-      waterData,
-      wasteData,
-      carbonEmissionsData
-    },
-    fugitiveEmissionsData,
-    environmentalData,
-    socialData,
-    governanceData,
-    emissionFactors
-  };
+    
+  } catch (error) {
+    console.error('Error in fetchDashboardData:', error);
+    throw error;
+  }
 };
+
+// Helper function to process chart data
+function processChartData(environmentalData, submissions) {
+  const energyData = [];
+  const emissionsData = [];
+  const waterData = [];
+  const wasteData = [];
+  const carbonEmissionsData = [];
+  
+  // Sort submissions by period_start
+  const sortedSubmissions = [...submissions].sort((a, b) => 
+    new Date(a.period_start).getTime() - new Date(b.period_start).getTime()
+  );
+  
+  // Process each submission to create chart data points
+  sortedSubmissions.forEach(submission => {
+    // Find matching environmental data
+    const envData = environmentalData.find(data => data.submission_id === submission.id);
+    
+    if (!envData) return;
+    
+    // Create date label
+    const dateObj = new Date(submission.period_start);
+    const monthAbbr = dateObj.toLocaleString('default', { month: 'short' });
+    const yearShort = dateObj.getFullYear().toString().slice(2);
+    const displayDate = `${monthAbbr}'${yearShort}`;
+    
+    // Energy data
+    energyData.push({
+      name: submission.sites?.name || 'Unknown',
+      date: submission.period_start,
+      displayDate,
+      period: `${new Date(submission.period_start).toLocaleDateString()} - ${new Date(submission.period_end).toLocaleDateString()}`,
+      'Total': Number(envData.total_electricity) || 0,
+      'Grid': (Number(envData.total_electricity) || 0) - ((Number(envData.renewable_ppa) || 0) + (Number(envData.renewable_rooftop) || 0)),
+      'Renewable PPA': Number(envData.renewable_ppa) || 0,
+      'Renewable Rooftop': Number(envData.renewable_rooftop) || 0
+    });
+    
+    // Emissions data
+    emissionsData.push({
+      name: submission.sites?.name || 'Unknown',
+      date: submission.period_start,
+      displayDate,
+      period: `${new Date(submission.period_start).toLocaleDateString()} - ${new Date(submission.period_end).toLocaleDateString()}`,
+      'NOx': Number(envData.nox) || 0,
+      'SOx': Number(envData.sox) || 0,
+      'PM': Number(envData.pm) || 0,
+      'Others': (Number(envData.voc) || 0) + (Number(envData.hap) || 0) + (Number(envData.pop) || 0)
+    });
+    
+    // Water data
+    waterData.push({
+      name: submission.sites?.name || 'Unknown',
+      date: submission.period_start,
+      displayDate,
+      period: `${new Date(submission.period_start).toLocaleDateString()} - ${new Date(submission.period_end).toLocaleDateString()}`,
+      'Withdrawal': Number(envData.water_withdrawal) || 0,
+      'ThirdParty': Number(envData.third_party_water) || 0,
+      'Rainwater': Number(envData.rainwater) || 0,
+      'Recycled': Number(envData.recycled_wastewater) || 0,
+      'Discharged': Number(envData.water_discharged) || 0
+    });
+    
+    // Waste data
+    wasteData.push({
+      name: submission.sites?.name || 'Unknown',
+      date: submission.period_start,
+      displayDate,
+      period: `${new Date(submission.period_start).toLocaleDateString()} - ${new Date(submission.period_end).toLocaleDateString()}`,
+      'Hazardous': Number(envData.total_hazardous) || 0,
+      'NonHazardous': Number(envData.non_hazardous) || 0,
+      'Plastic': Number(envData.plastic_waste) || 0,
+      'EWaste': Number(envData.e_waste) || 0,
+      'BioMedical': Number(envData.bio_medical) || 0,
+      'WasteOil': Number(envData.waste_oil) || 0
+    });
+    
+    // Carbon emissions data
+    carbonEmissionsData.push({
+      name: submission.sites?.name || 'Unknown',
+      date: submission.period_start,
+      displayDate,
+      period: `${new Date(submission.period_start).toLocaleDateString()} - ${new Date(submission.period_end).toLocaleDateString()}`,
+      'Electricity': Number(envData.electricity_emissions) || 0,
+      'Coal': Number(envData.coal_emissions) || 0,
+      'HSD': Number(envData.hsd_emissions) || 0,
+      'Furnace Oil': Number(envData.furnace_oil_emissions) || 0,
+      'Petrol': Number(envData.petrol_emissions) || 0
+    });
+  });
+  
+  return {
+    energyData,
+    emissionsData,
+    waterData,
+    wasteData,
+    carbonEmissionsData
+  };
+}

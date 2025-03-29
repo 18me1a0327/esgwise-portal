@@ -32,6 +32,8 @@ interface FugitiveEmissionsChartProps {
 const FugitiveEmissionsChart: React.FC<FugitiveEmissionsChartProps> = ({ data }) => {
   const COLORS = ['#FF9F0A', '#30D158', '#0A84FF', '#FF453A', '#BF5AF2', '#5E5CE6'];
 
+  console.log("Fugitive emissions data received in chart:", data);
+
   // Format data for bar chart
   const barData = [
     { name: 'R22', value: data.r22 || 0 },
