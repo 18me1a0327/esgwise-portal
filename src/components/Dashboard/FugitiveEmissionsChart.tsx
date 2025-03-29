@@ -14,6 +14,7 @@ import {
   Cell
 } from "recharts";
 import GlassCard from "@/components/ui/GlassCard";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FugitiveEmissionsData {
   r22: number;
@@ -30,6 +31,7 @@ interface FugitiveEmissionsChartProps {
 }
 
 const FugitiveEmissionsChart: React.FC<FugitiveEmissionsChartProps> = ({ data }) => {
+  const isMobile = useIsMobile();
   const COLORS = ['#FF9F0A', '#30D158', '#0A84FF', '#FF453A', '#BF5AF2', '#5E5CE6'];
 
   // Format data for bar chart
@@ -64,39 +66,39 @@ const FugitiveEmissionsChart: React.FC<FugitiveEmissionsChartProps> = ({ data })
   const totalGwp = gwpData.reduce((sum, item) => sum + item.gwpValue, 0);
 
   return (
-    <GlassCard className="p-5" hoverable>
-      <div className="flex flex-col space-y-4">
+    <GlassCard className="p-4 md:p-5" hoverable>
+      <div className="flex flex-col space-y-3 md:space-y-4">
         <h3 className="text-base font-medium">Fugitive Emissions</h3>
         
-        <div className="bg-gray-50 p-3 rounded flex justify-between items-center">
+        <div className="bg-gray-50 p-2 md:p-3 rounded flex flex-col md:flex-row md:justify-between md:items-center gap-2">
           <div>
             <p className="text-sm text-gray-500">Total Refrigerants</p>
-            <p className="text-2xl font-bold">{data.total.toFixed(1)} kg</p>
+            <p className="text-xl md:text-2xl font-bold">{data.total.toFixed(1)} kg</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Emissions Impact</p>
-            <p className="text-xl font-semibold text-amber-600">{totalGwp.toFixed(1)} tCO2e</p>
+            <p className="text-lg md:text-xl font-semibold text-amber-600">{totalGwp.toFixed(1)} tCO2e</p>
           </div>
         </div>
 
-        <div className="h-[250px] mt-2">
+        <div className="h-[200px] md:h-[250px] mt-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={barData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
+              <XAxis dataKey="name" tick={!isMobile ? {} : {fontSize: 10}} />
+              <YAxis tick={!isMobile ? {} : {fontSize: 10}} />
               <Tooltip 
                 formatter={(value) => [`${value} kg`, 'Amount']}
                 labelFormatter={(label) => `${label} Refrigerant`}
               />
-              <Legend />
+              <Legend wrapperStyle={isMobile ? {fontSize: '10px'} : undefined} />
               <Bar dataKey="value" name="Amount (kg)" fill="#0A84FF" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="flex justify-between mt-4">
-          <div className="w-1/2">
+        <div className="flex flex-col md:flex-row justify-between mt-2 md:mt-4 gap-4">
+          <div className="w-full md:w-1/2">
             <h4 className="text-sm font-medium mb-2 text-center">Refrigerant Distribution</h4>
             <div className="h-[150px]">
               {pieData.length > 0 ? (
@@ -106,18 +108,19 @@ const FugitiveEmissionsChart: React.FC<FugitiveEmissionsChartProps> = ({ data })
                       data={pieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={30}
-                      outerRadius={60}
+                      innerRadius={isMobile ? 20 : 30}
+                      outerRadius={isMobile ? 45 : 60}
                       fill="#8884d8"
                       paddingAngle={3}
                       dataKey="value"
+                      label={!isMobile ? ({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%` : undefined}
                     >
                       {pieData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => [`${value} kg`, '']} />
-                    <Legend />
+                    <Legend wrapperStyle={isMobile ? {fontSize: '10px'} : undefined} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -128,7 +131,7 @@ const FugitiveEmissionsChart: React.FC<FugitiveEmissionsChartProps> = ({ data })
             </div>
           </div>
           
-          <div className="w-1/2">
+          <div className="w-full md:w-1/2">
             <h4 className="text-sm font-medium mb-2 text-center">GWP Impact (tCO2e)</h4>
             <div className="grid grid-cols-2 gap-2">
               {gwpData.map((item, index) => (
