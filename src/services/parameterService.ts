@@ -228,6 +228,73 @@ export const fetchESGParameterStructure = async (): Promise<ESGParameterStructur
   }
 };
 
+// Add function to get parameter by ID
+export const getParameterById = async (id: string): Promise<Parameter | null> => {
+  const { data, error } = await supabase
+    .from('parameters')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) {
+    console.error("Error fetching parameter by ID:", error);
+    return null;
+  }
+  
+  return data;
+};
+
+// Function to get all parameters for a specific ESG type
+export const getParametersByType = async (type: CategoryType): Promise<Parameter[]> => {
+  // First get categories of this type
+  const { data: categories, error: catError } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('type', type);
+  
+  if (catError || !categories) {
+    console.error("Error fetching categories by type:", catError);
+    return [];
+  }
+  
+  // Get all parameters for these categories
+  const categoryIds = categories.map(cat => cat.id);
+  
+  if (categoryIds.length === 0) return [];
+  
+  const { data: parameters, error: paramError } = await supabase
+    .from('parameters')
+    .select('*')
+    .in('category_id', categoryIds)
+    .order('name');
+  
+  if (paramError) {
+    console.error("Error fetching parameters by category IDs:", paramError);
+    return [];
+  }
+  
+  return parameters || [];
+};
+
+// Helper functions for validating ESG data
+export const validateParameter = (parameter: Parameter, value: any): boolean => {
+  // If value is empty, it's valid (we allow empty fields)
+  if (value === null || value === undefined || value === "") return true;
+  
+  const numValue = Number(value);
+  
+  // If it's not a valid number, it's invalid
+  if (isNaN(numValue)) return false;
+  
+  // For percentage values, ensure they're between 0-100
+  if (parameter.unit === "%" || parameter.name.toLowerCase().includes("percentage")) {
+    return numValue >= 0 && numValue <= 100;
+  }
+  
+  // All other numeric values should be positive
+  return numValue >= 0;
+};
+
 // Utility function to get parameter by name (useful for forms)
 export const findParameterByName = (parameters: Parameter[], name: string): Parameter | undefined => {
   return parameters.find(param => param.name.toLowerCase() === name.toLowerCase());
@@ -255,4 +322,30 @@ export const mapFormDataToParameters = (formData: Record<string, any>, parameter
   });
   
   return mappedData;
+};
+
+// Format ESG values for display
+export const formatESGValue = (parameter: Parameter, value: any): string => {
+  if (value === null || value === undefined || value === "") return "-";
+  
+  const numValue = Number(value);
+  if (isNaN(numValue)) return String(value);
+  
+  // For percentage fields
+  if (parameter.unit === "%") {
+    return `${numValue.toFixed(1)}%`;
+  }
+  
+  // For monetary values (INR)
+  if (parameter.unit === "INR/year") {
+    return `₹${numValue.toLocaleString('en-IN')}`;
+  }
+  
+  // For other numeric values with units
+  if (parameter.unit) {
+    return `${numValue.toLocaleString('en-IN')} ${parameter.unit}`;
+  }
+  
+  // For numeric values without units
+  return numValue.toLocaleString('en-IN');
 };

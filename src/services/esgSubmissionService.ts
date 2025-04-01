@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ApprovalStatus } from "@/types/esg";
 
@@ -145,6 +144,48 @@ export const saveAsDraft = async (
   if (govError) {
     console.error('Error adding governance data:', govError);
     throw new Error('Failed to add governance data');
+  }
+
+  return { submissionId };
+};
+
+export const updateDraftSubmission = async (
+  submissionId: string,
+  environmentalData: any,
+  socialData: any,
+  governanceData: any
+) => {
+  // Update environmental data
+  const { error: envError } = await supabase
+    .from('environmental_data')
+    .update(environmentalData)
+    .eq('submission_id', submissionId);
+
+  if (envError) {
+    console.error('Error updating environmental data:', envError);
+    throw new Error('Failed to update environmental data');
+  }
+
+  // Update social data
+  const { error: socialError } = await supabase
+    .from('social_data')
+    .update(socialData)
+    .eq('submission_id', submissionId);
+
+  if (socialError) {
+    console.error('Error updating social data:', socialError);
+    throw new Error('Failed to update social data');
+  }
+
+  // Update governance data
+  const { error: govError } = await supabase
+    .from('governance_data')
+    .update(governanceData)
+    .eq('submission_id', submissionId);
+
+  if (govError) {
+    console.error('Error updating governance data:', govError);
+    throw new Error('Failed to update governance data');
   }
 
   return { submissionId };
