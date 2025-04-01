@@ -1,5 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { SiteInfo } from "@/types/esg";
 
 export const fetchSites = async () => {
   const { data, error } = await supabase
@@ -12,7 +12,16 @@ export const fetchSites = async () => {
     throw new Error('Failed to fetch sites');
   }
 
-  return data || [];
+  // Transform the data to match the SiteInfo type
+  // If the API doesn't return location and type, we'll provide defaults
+  const transformedData = data.map(site => ({
+    id: site.id,
+    name: site.name,
+    location: site.location || "",
+    type: site.type || ""
+  }));
+
+  return transformedData;
 };
 
 export const getSiteById = async (id: string) => {

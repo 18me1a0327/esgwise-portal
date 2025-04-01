@@ -3,7 +3,6 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Parameter } from "@/services/parameterService";
-import { FormHelperText } from "@/components/ui/form";
 
 interface ParameterInputProps {
   parameter: Parameter;
@@ -38,9 +37,9 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
         className="w-full"
       />
       {parameter.unit && (
-        <FormHelperText className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground mt-1">
           Unit: {parameter.unit}
-        </FormHelperText>
+        </p>
       )}
     </div>
   );

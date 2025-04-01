@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -104,7 +103,7 @@ const FormEntry: React.FC = () => {
   const { data: esgStructure, isLoading: isESGStructureLoading } = useESGParameters();
   const structureLoaded = isESGStructureLoaded(esgStructure);
 
-  // Load sites
+  // Load sites - with type assertion to make TypeScript happy
   const { data: sites, isLoading: isSitesLoading } = useQuery({
     queryKey: ['sites'],
     queryFn: fetchSites
@@ -396,7 +395,7 @@ const FormEntry: React.FC = () => {
                   <SelectValue placeholder="Select site" />
                 </SelectTrigger>
                 <SelectContent>
-                  {sites?.map((site: SiteInfo) => (
+                  {sites && sites.map((site) => (
                     <SelectItem key={site.id} value={site.id}>
                       {site.name}
                     </SelectItem>
