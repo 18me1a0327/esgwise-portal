@@ -25,6 +25,7 @@ export interface Parameter {
 export interface ESGParameterStructure {
   [categoryType: string]: {
     [categoryName: string]: {
+      categoryId: string; // Add categoryId to the structure
       parameters: Parameter[];
     }
   }
@@ -200,6 +201,7 @@ export const fetchESGParameterStructure = async (): Promise<ESGParameterStructur
       
       // Initialize this category in the structure
       structure[category.type][category.name] = {
+        categoryId: category.id, // Store the category ID
         parameters: parameters.filter(param => param.category_id === category.id)
       };
     });

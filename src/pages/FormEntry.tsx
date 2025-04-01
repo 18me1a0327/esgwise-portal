@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -27,7 +26,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchSites } from "@/services/siteService";
 import { createSubmission, saveAsDraft, fetchSubmissionDetails } from "@/services/esgSubmissionService";
 import { useESGParameters, isESGStructureLoaded } from "@/hooks/useESGParameters";
-import { ESGParameterStructure } from "@/services/parameterService";
+import { ESGParameterStructure, Parameter } from "@/services/parameterService";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -70,6 +70,7 @@ const FormEntry = () => {
   const { id } = useParams();
   const isEditMode = !!id;
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [selectedSite, setSelectedSite] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
@@ -85,7 +86,6 @@ const FormEntry = () => {
     governance: {} as GovernanceData
   });
 
-  // Load ESG parameters from the Manage Parameters page
   const { data: esgStructure, isLoading: isESGStructureLoading } = useESGParameters();
   const structureLoaded = isESGStructureLoaded(esgStructure);
 
@@ -209,10 +209,8 @@ const FormEntry = () => {
     }
   }, [isEditMode, submissionDetails]);
 
-  // Set initial category when ESG structure is loaded
   useEffect(() => {
     if (structureLoaded && esgStructure) {
-      // Set initial selected category to first available category in the active tab
       const categoryType = activeTab as keyof ESGParameterStructure;
       const categories = Object.keys(esgStructure[categoryType] || {});
       
@@ -329,7 +327,6 @@ const FormEntry = () => {
     }));
   };
 
-  // Get categories for the active tab from esgStructure
   const getCurrentCategories = () => {
     if (!structureLoaded || !esgStructure) return [];
     
@@ -337,8 +334,7 @@ const FormEntry = () => {
     return Object.keys(esgStructure[categoryType] || {});
   };
 
-  // Get parameters for the selected category from esgStructure
-  const getCurrentParameters = () => {
+  const getCurrentParameters = (): Parameter[] => {
     if (!structureLoaded || !esgStructure || !selectedCategory) return [];
     
     const categoryType = activeTab as keyof ESGParameterStructure;
