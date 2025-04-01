@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { SiteInfo } from "@/types/esg";
 
@@ -19,7 +20,7 @@ export const fetchSites = async () => {
     name: site.name,
     location: site.location || "",
     type: site.type || ""
-  }));
+  })) as SiteInfo[];
 
   return transformedData;
 };
