@@ -19,9 +19,9 @@ export const fetchSites = async () => {
     name: site.name,
     location: site.location || "",
     type: site.type || ""
-  })) as SiteInfo[];
+  }));
 
-  return transformedData;
+  return transformedData as SiteInfo[];
 };
 
 export const getSiteById = async (id: string) => {
