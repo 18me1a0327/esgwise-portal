@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 // Category types
@@ -25,7 +24,7 @@ export interface Parameter {
 export interface ESGParameterStructure {
   [categoryType: string]: {
     [categoryName: string]: {
-      categoryId: string; // Add categoryId to the structure
+      categoryId: string;
       parameters: Parameter[];
     }
   }
@@ -178,12 +177,15 @@ export const deleteParameter = async (id: string): Promise<void> => {
   if (error) throw new Error(error.message);
 };
 
-// New function to fetch ESG parameters in a structured format for forms
+// Function to fetch ESG parameters in a structured format for forms
 export const fetchESGParameterStructure = async (): Promise<ESGParameterStructure> => {
   try {
     // Fetch all the required data
     const categories = await fetchCategories();
     const parameters = await fetchParameters();
+    
+    console.log("Fetched categories:", categories.length);
+    console.log("Fetched parameters:", parameters.length);
     
     // Initialize the structure with the three main ESG categories
     const structure: ESGParameterStructure = {
@@ -199,10 +201,14 @@ export const fetchESGParameterStructure = async (): Promise<ESGParameterStructur
         structure[category.type] = {};
       }
       
+      // Get parameters for this category
+      const categoryParameters = parameters.filter(param => param.category_id === category.id);
+      console.log(`Category ${category.name} (${category.id}) has ${categoryParameters.length} parameters`);
+      
       // Initialize this category in the structure
       structure[category.type][category.name] = {
         categoryId: category.id, // Store the category ID
-        parameters: parameters.filter(param => param.category_id === category.id)
+        parameters: categoryParameters
       };
     });
     
@@ -211,6 +217,9 @@ export const fetchESGParameterStructure = async (): Promise<ESGParameterStructur
       Object.keys(structure.social).length, "social categories,",
       Object.keys(structure.governance).length, "governance categories"
     );
+    
+    // Log entire structure for debugging
+    console.log("Full ESG structure:", JSON.stringify(structure, null, 2));
     
     return structure;
   } catch (error) {

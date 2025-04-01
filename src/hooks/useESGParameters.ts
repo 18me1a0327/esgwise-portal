@@ -1,41 +1,35 @@
 
-import { useQuery } from "@tanstack/react-query";
-import { fetchESGParameterStructure, ESGParameterStructure } from "@/services/parameterService";
-import { toast } from "@/hooks/use-toast";
+import { useQuery } from '@tanstack/react-query';
+import { fetchESGParameterStructure, ESGParameterStructure } from '@/services/parameterService';
 
-/**
- * Hook to fetch ESG parameters in a structured hierarchy:
- * - Category types (environmental, social, governance)
- *   - Categories
- *     - Parameters
- */
-export function useESGParameters() {
+export const useESGParameters = () => {
   return useQuery({
     queryKey: ['esg-parameters'],
     queryFn: fetchESGParameterStructure,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
-    retry: 2,
-    meta: {
-      onError: (error: Error) => {
-        toast({
-          title: "Failed to load ESG parameters",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1
+  });
+};
+
+// Helper function to check if the ESG structure is loaded
+export const isESGStructureLoaded = (structure: ESGParameterStructure | undefined): boolean => {
+  if (!structure) return false;
+  
+  // Count total parameters across all categories
+  let totalParameters = 0;
+  ['environmental', 'social', 'governance'].forEach(type => {
+    const categoryType = type as keyof ESGParameterStructure;
+    if (structure[categoryType]) {
+      Object.keys(structure[categoryType]).forEach(categoryName => {
+        if (structure[categoryType][categoryName]?.parameters) {
+          totalParameters += structure[categoryType][categoryName].parameters.length;
+        }
+      });
     }
   });
-}
-
-/**
- * Utility function to check if a parameter structure is loaded and valid
- */
-export function isESGStructureLoaded(data: ESGParameterStructure | undefined): boolean {
-  if (!data) return false;
   
-  // Check if we have the three main category types
-  return ['environmental', 'social', 'governance'].every(type => 
-    typeof data[type] === 'object' && data[type] !== null
-  );
-}
+  console.log("Total parameters in structure:", totalParameters);
+  
+  // Structure is considered loaded if it has at least some parameters
+  return totalParameters > 0;
+};
