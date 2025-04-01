@@ -14,7 +14,6 @@ export const fetchSites = async () => {
   }
 
   // Transform the data to match the SiteInfo type
-  // If the API doesn't return location and type, we'll provide defaults
   const transformedData = data.map(site => ({
     id: site.id,
     name: site.name,
@@ -40,10 +39,10 @@ export const getSiteById = async (id: string) => {
   return data;
 };
 
-export const createSite = async (name: string) => {
+export const createSite = async (name: string, location: string, type: string) => {
   const { data, error } = await supabase
     .from('sites')
-    .insert({ name })
+    .insert({ name, location, type })
     .select();
 
   if (error) {
@@ -54,10 +53,10 @@ export const createSite = async (name: string) => {
   return data?.[0];
 };
 
-export const updateSite = async (id: string, name: string) => {
+export const updateSite = async (id: string, name: string, location: string, type: string) => {
   const { data, error } = await supabase
     .from('sites')
-    .update({ name })
+    .update({ name, location, type })
     .eq('id', id)
     .select();
 
