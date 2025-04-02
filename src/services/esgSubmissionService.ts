@@ -122,12 +122,12 @@ export const createSubmission = async (
   }
 
   // Process environmental data
-  const processedEnvironmentalData: Partial<EnvironmentalDataInsert> = {
+  const processedEnvironmentalData: EnvironmentalDataInsert = {
     submission_id: submissionId
   };
   
   for (const [paramName, value] of Object.entries(environmentalData)) {
-    const columnName = convertParameterName(paramName) as keyof Omit<EnvironmentalDataInsert, 'submission_id'>;
+    const columnName = convertParameterName(paramName);
     if (columnName) {
       (processedEnvironmentalData as any)[columnName] = value;
     }
@@ -143,12 +143,12 @@ export const createSubmission = async (
   }
 
   // Process social data
-  const processedSocialData: Partial<SocialDataInsert> = {
+  const processedSocialData: SocialDataInsert = {
     submission_id: submissionId
   };
   
   for (const [paramName, value] of Object.entries(socialData)) {
-    const columnName = convertParameterName(paramName) as keyof Omit<SocialDataInsert, 'submission_id'>;
+    const columnName = convertParameterName(paramName);
     if (columnName) {
       (processedSocialData as any)[columnName] = value;
     }
@@ -164,12 +164,12 @@ export const createSubmission = async (
   }
 
   // Process governance data
-  const processedGovernanceData: Partial<GovernanceDataInsert> = {
+  const processedGovernanceData: GovernanceDataInsert = {
     submission_id: submissionId
   };
   
   for (const [paramName, value] of Object.entries(governanceData)) {
-    const columnName = convertParameterName(paramName) as keyof Omit<GovernanceDataInsert, 'submission_id'>;
+    const columnName = convertParameterName(paramName);
     if (columnName) {
       (processedGovernanceData as any)[columnName] = value;
     }
@@ -219,12 +219,12 @@ export const saveAsDraft = async (
   }
 
   // Process environmental data
-  const processedEnvironmentalData: Partial<EnvironmentalDataInsert> = {
+  const processedEnvironmentalData: EnvironmentalDataInsert = {
     submission_id: submissionId
   };
   
   for (const [paramName, value] of Object.entries(environmentalData)) {
-    const columnName = convertParameterName(paramName) as keyof Omit<EnvironmentalDataInsert, 'submission_id'>;
+    const columnName = convertParameterName(paramName);
     if (columnName) {
       (processedEnvironmentalData as any)[columnName] = value;
     }
@@ -240,12 +240,12 @@ export const saveAsDraft = async (
   }
 
   // Process social data
-  const processedSocialData: Partial<SocialDataInsert> = {
+  const processedSocialData: SocialDataInsert = {
     submission_id: submissionId
   };
   
   for (const [paramName, value] of Object.entries(socialData)) {
-    const columnName = convertParameterName(paramName) as keyof Omit<SocialDataInsert, 'submission_id'>;
+    const columnName = convertParameterName(paramName);
     if (columnName) {
       (processedSocialData as any)[columnName] = value;
     }
@@ -261,12 +261,12 @@ export const saveAsDraft = async (
   }
 
   // Process governance data
-  const processedGovernanceData: Partial<GovernanceDataInsert> = {
+  const processedGovernanceData: GovernanceDataInsert = {
     submission_id: submissionId
   };
   
   for (const [paramName, value] of Object.entries(governanceData)) {
-    const columnName = convertParameterName(paramName) as keyof Omit<GovernanceDataInsert, 'submission_id'>;
+    const columnName = convertParameterName(paramName);
     if (columnName) {
       (processedGovernanceData as any)[columnName] = value;
     }
@@ -291,12 +291,12 @@ export const updateDraftSubmission = async (
   governanceData: Record<string, any>
 ) => {
   // Process environmental data
-  const processedEnvironmentalData: Partial<EnvironmentalDataInsert> = {
+  const processedEnvironmentalData: EnvironmentalDataInsert = {
     submission_id: submissionId
   };
   
   for (const [paramName, value] of Object.entries(environmentalData)) {
-    const columnName = convertParameterName(paramName) as keyof Omit<EnvironmentalDataInsert, 'submission_id'>;
+    const columnName = convertParameterName(paramName);
     if (columnName) {
       (processedEnvironmentalData as any)[columnName] = value;
     }
@@ -313,12 +313,12 @@ export const updateDraftSubmission = async (
   }
 
   // Process social data
-  const processedSocialData: Partial<SocialDataInsert> = {
+  const processedSocialData: SocialDataInsert = {
     submission_id: submissionId
   };
   
   for (const [paramName, value] of Object.entries(socialData)) {
-    const columnName = convertParameterName(paramName) as keyof Omit<SocialDataInsert, 'submission_id'>;
+    const columnName = convertParameterName(paramName);
     if (columnName) {
       (processedSocialData as any)[columnName] = value;
     }
@@ -335,12 +335,12 @@ export const updateDraftSubmission = async (
   }
 
   // Process governance data
-  const processedGovernanceData: Partial<GovernanceDataInsert> = {
+  const processedGovernanceData: GovernanceDataInsert = {
     submission_id: submissionId
   };
   
   for (const [paramName, value] of Object.entries(governanceData)) {
-    const columnName = convertParameterName(paramName) as keyof Omit<GovernanceDataInsert, 'submission_id'>;
+    const columnName = convertParameterName(paramName);
     if (columnName) {
       (processedGovernanceData as any)[columnName] = value;
     }
