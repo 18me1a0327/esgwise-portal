@@ -1,6 +1,5 @@
 
 import React from "react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormNumericInput } from "@/components/ui/form";
 import { Parameter } from "@/services/parameterService";
@@ -37,7 +36,7 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
                      parameter.name.toLowerCase().includes("wages") ||
                      parameter.name.toLowerCase().includes("fines");
   
-  // Handle input change
+  // Handle input change with validation
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     
@@ -49,6 +48,22 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
     }
     
     onChange(newValue);
+  };
+
+  // Handle numeric value change from the debounced input
+  const handleNumericChange = (numValue: number | null) => {
+    if (numValue === null) {
+      onChange("");
+      return;
+    }
+    
+    // For percentage fields, ensure the value is between 0 and 100
+    if (isPercentage) {
+      if (numValue < 0) return onChange("0");
+      if (numValue > 100) return onChange("100");
+    }
+    
+    onChange(String(numValue));
   };
 
   // Generate tooltip content based on parameter name and unit
@@ -110,8 +125,8 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
       
       <FormNumericInput
         id={parameter.id}
-        type="number"
         value={inputValue}
+        onValueChange={handleNumericChange}
         onChange={handleChange}
         placeholder={`Enter ${parameter.name}`}
         disabled={disabled}

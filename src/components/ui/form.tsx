@@ -165,7 +165,7 @@ const FormMessage = React.forwardRef<
 })
 FormMessage.displayName = "FormMessage"
 
-// New helper component for debounced numeric inputs
+// Improved debounced numeric input component with better type safety
 const FormNumericInput = React.forwardRef<
   HTMLInputElement,
   React.InputHTMLAttributes<HTMLInputElement> & {
@@ -173,10 +173,16 @@ const FormNumericInput = React.forwardRef<
     onValueChange?: (value: number | null) => void;
   }
 >(({ debounceMs = 300, onValueChange, ...props }, ref) => {
-  const [internalValue, setInternalValue] = React.useState(props.value?.toString() || '');
+  const [internalValue, setInternalValue] = React.useState(() => 
+    props.value !== undefined && props.value !== null ? String(props.value) : '');
   
+  // Update internal value when prop value changes
   React.useEffect(() => {
-    setInternalValue(props.value?.toString() || '');
+    if (props.value !== undefined && props.value !== null) {
+      setInternalValue(String(props.value));
+    } else if (props.value === null || props.value === undefined) {
+      setInternalValue('');
+    }
   }, [props.value]);
 
   // Debounced value change
