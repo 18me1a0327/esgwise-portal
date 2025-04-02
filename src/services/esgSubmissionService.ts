@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ApprovalStatus } from "@/types/esg";
 
@@ -114,45 +115,60 @@ export const createSubmission = async (
     throw new Error('No submission ID returned');
   }
 
+  // Create environmental data object with submission_id
   const processedEnvironmentalData: Record<string, any> = { submission_id: submissionId };
   for (const [paramName, value] of Object.entries(environmentalData)) {
     const columnName = convertParameterName(paramName);
     processedEnvironmentalData[columnName] = value;
   }
 
+  // Make sure submission_id is included in the insert
   const { error: envError } = await supabase
     .from('environmental_data')
-    .insert(processedEnvironmentalData);
+    .insert({
+      ...processedEnvironmentalData,
+      submission_id: submissionId
+    });
 
   if (envError) {
     console.error('Error adding environmental data:', envError);
     throw new Error('Failed to add environmental data');
   }
 
+  // Create social data object with submission_id
   const processedSocialData: Record<string, any> = { submission_id: submissionId };
   for (const [paramName, value] of Object.entries(socialData)) {
     const columnName = convertParameterName(paramName);
     processedSocialData[columnName] = value;
   }
 
+  // Make sure submission_id is included in the insert
   const { error: socialError } = await supabase
     .from('social_data')
-    .insert(processedSocialData);
+    .insert({
+      ...processedSocialData,
+      submission_id: submissionId
+    });
 
   if (socialError) {
     console.error('Error adding social data:', socialError);
     throw new Error('Failed to add social data');
   }
 
+  // Create governance data object with submission_id
   const processedGovernanceData: Record<string, any> = { submission_id: submissionId };
   for (const [paramName, value] of Object.entries(governanceData)) {
     const columnName = convertParameterName(paramName);
     processedGovernanceData[columnName] = value;
   }
 
+  // Make sure submission_id is included in the insert
   const { error: govError } = await supabase
     .from('governance_data')
-    .insert(processedGovernanceData);
+    .insert({
+      ...processedGovernanceData,
+      submission_id: submissionId
+    });
 
   if (govError) {
     console.error('Error adding governance data:', govError);
@@ -193,45 +209,60 @@ export const saveAsDraft = async (
     throw new Error('No submission ID returned');
   }
 
+  // Create environmental data object with submission_id
   const processedEnvironmentalData: Record<string, any> = { submission_id: submissionId };
   for (const [paramName, value] of Object.entries(environmentalData)) {
     const columnName = convertParameterName(paramName);
     processedEnvironmentalData[columnName] = value;
   }
 
+  // Make sure submission_id is included in the insert
   const { error: envError } = await supabase
     .from('environmental_data')
-    .insert(processedEnvironmentalData);
+    .insert({
+      ...processedEnvironmentalData,
+      submission_id: submissionId
+    });
 
   if (envError) {
     console.error('Error adding environmental data:', envError);
     throw new Error('Failed to add environmental data');
   }
 
+  // Create social data object with submission_id
   const processedSocialData: Record<string, any> = { submission_id: submissionId };
   for (const [paramName, value] of Object.entries(socialData)) {
     const columnName = convertParameterName(paramName);
     processedSocialData[columnName] = value;
   }
 
+  // Make sure submission_id is included in the insert
   const { error: socialError } = await supabase
     .from('social_data')
-    .insert(processedSocialData);
+    .insert({
+      ...processedSocialData,
+      submission_id: submissionId
+    });
 
   if (socialError) {
     console.error('Error adding social data:', socialError);
     throw new Error('Failed to add social data');
   }
 
+  // Create governance data object with submission_id
   const processedGovernanceData: Record<string, any> = { submission_id: submissionId };
   for (const [paramName, value] of Object.entries(governanceData)) {
     const columnName = convertParameterName(paramName);
     processedGovernanceData[columnName] = value;
   }
 
+  // Make sure submission_id is included in the insert
   const { error: govError } = await supabase
     .from('governance_data')
-    .insert(processedGovernanceData);
+    .insert({
+      ...processedGovernanceData,
+      submission_id: submissionId
+    });
 
   if (govError) {
     console.error('Error adding governance data:', govError);
@@ -247,12 +278,14 @@ export const updateDraftSubmission = async (
   socialData: any,
   governanceData: any
 ) => {
-  const processedEnvironmentalData: Record<string, any> = {};
+  // Create environmental data object with submission_id
+  const processedEnvironmentalData: Record<string, any> = { submission_id: submissionId };
   for (const [paramName, value] of Object.entries(environmentalData)) {
     const columnName = convertParameterName(paramName);
     processedEnvironmentalData[columnName] = value;
   }
 
+  // Make sure submission_id is included in the update
   const { error: envError } = await supabase
     .from('environmental_data')
     .update(processedEnvironmentalData)
@@ -263,12 +296,14 @@ export const updateDraftSubmission = async (
     throw new Error('Failed to update environmental data');
   }
 
-  const processedSocialData: Record<string, any> = {};
+  // Create social data object with submission_id
+  const processedSocialData: Record<string, any> = { submission_id: submissionId };
   for (const [paramName, value] of Object.entries(socialData)) {
     const columnName = convertParameterName(paramName);
     processedSocialData[columnName] = value;
   }
 
+  // Make sure submission_id is included in the update
   const { error: socialError } = await supabase
     .from('social_data')
     .update(processedSocialData)
@@ -279,12 +314,14 @@ export const updateDraftSubmission = async (
     throw new Error('Failed to update social data');
   }
 
-  const processedGovernanceData: Record<string, any> = {};
+  // Create governance data object with submission_id
+  const processedGovernanceData: Record<string, any> = { submission_id: submissionId };
   for (const [paramName, value] of Object.entries(governanceData)) {
     const columnName = convertParameterName(paramName);
     processedGovernanceData[columnName] = value;
   }
 
+  // Make sure submission_id is included in the update
   const { error: govError } = await supabase
     .from('governance_data')
     .update(processedGovernanceData)
