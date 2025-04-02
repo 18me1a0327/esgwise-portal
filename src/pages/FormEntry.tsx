@@ -190,7 +190,7 @@ const FormEntry: React.FC = () => {
         Object.values(esgStructure.environmental || {}).forEach(category => {
           category.parameters.forEach(param => {
             if (parameterValues[param.id] !== undefined) {
-              environmentalData[param.name.toLowerCase().replace(/\s+/g, '_')] = Number(parameterValues[param.id]) || 0;
+              environmentalData[param.name] = Number(parameterValues[param.id]) || 0;
             }
           });
         });
@@ -199,7 +199,7 @@ const FormEntry: React.FC = () => {
         Object.values(esgStructure.social || {}).forEach(category => {
           category.parameters.forEach(param => {
             if (parameterValues[param.id] !== undefined) {
-              socialData[param.name.toLowerCase().replace(/\s+/g, '_')] = Number(parameterValues[param.id]) || 0;
+              socialData[param.name] = Number(parameterValues[param.id]) || 0;
             }
           });
         });
@@ -208,7 +208,7 @@ const FormEntry: React.FC = () => {
         Object.values(esgStructure.governance || {}).forEach(category => {
           category.parameters.forEach(param => {
             if (parameterValues[param.id] !== undefined) {
-              governanceData[param.name.toLowerCase().replace(/\s+/g, '_')] = Number(parameterValues[param.id]) || 0;
+              governanceData[param.name] = Number(parameterValues[param.id]) || 0;
             }
           });
         });
@@ -271,12 +271,12 @@ const FormEntry: React.FC = () => {
       const socialData: Record<string, any> = {};
       const governanceData: Record<string, any> = {};
       
-      // Process parameters by category (same logic as submit)
+      // Process parameters by category (using parameter names as keys)
       if (structureLoaded && esgStructure) {
         Object.values(esgStructure.environmental || {}).forEach(category => {
           category.parameters.forEach(param => {
             if (parameterValues[param.id] !== undefined) {
-              environmentalData[param.name.toLowerCase().replace(/\s+/g, '_')] = Number(parameterValues[param.id]) || 0;
+              environmentalData[param.name] = Number(parameterValues[param.id]) || 0;
             }
           });
         });
@@ -284,7 +284,7 @@ const FormEntry: React.FC = () => {
         Object.values(esgStructure.social || {}).forEach(category => {
           category.parameters.forEach(param => {
             if (parameterValues[param.id] !== undefined) {
-              socialData[param.name.toLowerCase().replace(/\s+/g, '_')] = Number(parameterValues[param.id]) || 0;
+              socialData[param.name] = Number(parameterValues[param.id]) || 0;
             }
           });
         });
@@ -292,7 +292,7 @@ const FormEntry: React.FC = () => {
         Object.values(esgStructure.governance || {}).forEach(category => {
           category.parameters.forEach(param => {
             if (parameterValues[param.id] !== undefined) {
-              governanceData[param.name.toLowerCase().replace(/\s+/g, '_')] = Number(parameterValues[param.id]) || 0;
+              governanceData[param.name] = Number(parameterValues[param.id]) || 0;
             }
           });
         });
